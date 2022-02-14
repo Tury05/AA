@@ -34,6 +34,10 @@ indexNullColumn = last.(Tuple.(findall((maxIn .== minIn) .* (stdIn .== 0))));
 
 if !isempty(indexNullColumn)
 	inDS = inDS[:, 1:end .!= indexNullColumn];
+	maxIn = maxIn[:, 1:end .!= indexNullColumn];
+	minIn = minIn[:, 1:end .!= indexNullColumn];
+	avgIn = avgIn[:, 1:end .!= indexNullColumn];
+	stdIn = stdIn[:, 1:end .!= indexNullColumn];
 end;
 
 normWithMaxMin = 0.75 .> maxMinNorm(avgIn, minIn, maxIn) .> 0.25;
