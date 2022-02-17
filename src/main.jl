@@ -150,7 +150,7 @@ classifyOutputs = function (outputs::AbstractArray{<:Real,2}, threshold = 0.5)
 end
 
 
-#4 (dificultad media)
+#4 (dificultad media) P�gina 11
 accuracy = function (target::AbstractArray{Bool,1},
 		outputs::AbstractArray{Bool,1})
 	@assert size(target) == size(outputs)
