@@ -139,12 +139,10 @@ end
 
 #3 (dificultad media)
 classifyOutputs = function (outputs::AbstractArray{<:Real,2}, threshold = 0.5)
-	out = falses(size(outputs))
 	if size(outputs, 2) == 1
-		for i in 1:size(outputs, 1)
-			out[i] = outputs[i]>= threshold
-		end
+		out = outputs .>= threshold
 	else
+		out = falses(size(outputs))
 		(_,indicesMaxEachInstance) = findmax(outputs, dims=2)
 		out[indicesMaxEachInstance] .= true
 	end
@@ -155,23 +153,39 @@ end
 #4 (dificultad media)
 accuracy = function (target::AbstractArray{Bool,1},
 		outputs::AbstractArray{Bool,1})
-	
-end;
+	@assert size(target) == size(outputs)
+	classComparison = target .== outputs
+	accuracy = mean(classComparison)
+end
 
 accuracy = function (target::AbstractArray{Bool,2},
 		outputs::AbstractArray{Bool,2})
-	
-end;
+	@assert size(target) == size(outputs)
+	if size(outputs, 2) == 1
+		accuracy(reshape(target, size(target, 1)), reshape(outputs, size(outputs, 1)))
+	else if size(outputs, 2) > 2
+		classComparison = target .== outputs
+		correctClassifications = all(classComparison, dims=2)
+		accuracy = mean(correctClassifications)
+	end
+end
 
 accuracy = function (target::AbstractArray{Bool,1},
-		outputs::AbstractArray{<:Real,1})
-	
-end;
+		outputs::AbstractArray{<:Real,1}, threshold = 0.5)
+	@assert size(target) == size(outputs)
+	out = outputs .>= threshold
+	accuracy(target, out)
+end
 
 accuracy = function (target::AbstractArray{Bool,2},
-		outputs::AbstractArray{<:Real,2})
-	
-end;
+		outputs::AbstractArray{<:Real,2}, threshold = 0.5)
+	@assert size(target) == size(outputs)
+	if size(outputs, 2) == 1
+		accuracy(reshape(target, size(target, 1)), reshape(outputs, size(outputs, 1)))
+	else if size(outputs, 2) > 2
+		classifiedOut= classifyOutputs(outputs, threshold)
+		accuracy(target, classifiedOut)
+end
 
 
 #5 (dificultad alta)
