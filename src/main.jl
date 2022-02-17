@@ -64,51 +64,86 @@ end;
 
 #2
 calculateMinMaxNormalizationParameters = function (inputs::AbstractArray{<:Real,2})
-	
-end;
+	(minimum(inputs, dims=1), maximum(inputs, dims=1))
+end
 
 calculateZeroMeanNormalizationParameters = function (inputs::AbstractArray{<:Real,2})
-	
-end;
+	(mean(inputs, dims=1), std(inputs, dims=1))
+end
 
 
-normalizeMinMax! = function (inputs::AbstractArray{<:Real,2},
-		minMax::NTuple{2, AbstractArray{<:Real,2}})
-	
-end;
+normalizeMinMax! = function (inputs::AbstractArray{Float32,2},
+	minMax::NTuple{2, AbstractArray{<:Real,2}})
+	_, x = size(inputs)
+	for i in 1:x
+		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
+	end
+end
 
-normalizeMinMax! = function (inputs::AbstractArray{<:Real,2})
-	
-end;
+normalizeMinMax! = function (inputs::AbstractArray{Float32,2})
+	_, x = size(inputs)
+	minMax = calculateMinMaxNormalizationParameters(inputs)
+	for i in 1:x
+		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
+	end
+end
 
-normalizeMinMax = function (inputs::AbstractArray{<:Real,2},
-		minMax::NTuple{2, AbstractArray{<:Real,2}}=())
-	
-end;
+normalizeMinMax = function (inputs::AbstractArray{Float32,2},
+	minMax::NTuple{2, AbstractArray{<:Real,2}}=())
+	out = copy(inputs)
+	_, x = size(out)
+	for i in 1:x
+		out[:, i] = maxMinNorm(out[:, i], minMax[1][i], minMax[2][i])
+	end
+	return out
+end
 
-normalizeMinMax = function (inputs::AbstractArray{<:Real,2})
-	
-end;
+normalizeMinMax = function (inputs::AbstractArray{Float32,2})
+	out = copy(inputs)
+	minMax = calculateMinMaxNormalizationParameters(out)
+	_, x = size(out)
+	for i in 1:x
+		out[:, i] = maxMinNorm(out[:, i], minMax[1][i], minMax[2][i])
+	end
+	return out
+end
 
 
-normalizeZeroMean! = function (inputs::AbstractArray{<:Real,2},
+normalizeZeroMean! = function (inputs::AbstractArray{Float32,2},
 		meanStd::NTuple{2, AbstractArray{<:Real,2}})
-	
-end;
+	_, x = size(inputs)
+	for i in 1:x
+		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
+	end
+end
 
-normalizeZeroMean! = function (inputs::AbstractArray{<:Real,2})
-	
-end;
+normalizeZeroMean! = function (inputs::AbstractArray{Float32,2})
+	meanStd = calculateZeroMeanNormalizationParameters(inputs)
+	_, x = size(inputs)
+	for i in 1:x
+		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
+	end
+end
 
-normalizeZeroMean = function (inputs::AbstractArray{<:Real,2},
+normalizeZeroMean = function (inputs::AbstractArray{Float32,2},
 		meanStd::NTuple{2, AbstractArray{<:Real,2}})
-	
-end;
+	out = copy(inputs)
+	_, x = size(out)
+	for i in 1:x
+		out[:, i] = media0Norm(out[:, i], meanStd[1][i], meanStd[2][i])
+	end
+	return out
+end
 
-normalizeZeroMean = function (inputs::AbstractArray{<:Real,2})
-	
-end;
-
+normalizeZeroMean = function (inputs::AbstractArray{Float32,2})
+	out = copy(inputs)
+	meanStd = calculateZeroMeanNormalizationParameters(out)
+	_, x = size(out)
+	for i in 1:x
+		out[:, i] = media0Norm(out[:, i], meanStd[1][i], meanStd[2][i])
+	end
+	return out
+end
 
 #3 (dificultad media)
 classifyOutputs = function (outputs::AbstractArray{<:Real,2})
