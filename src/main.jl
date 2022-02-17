@@ -151,10 +151,12 @@ classifyOutputs = function (outputs::AbstractArray{<:Real,2})
 end;
 
 
-#4 (dificultad media)
+#4 (dificultad media) Página 11
 accuracy = function (target::AbstractArray{Bool,1},
 		outputs::AbstractArray{Bool,1})
-	
+	classComparison = targets .== outputs;
+	correctClassifications = all(classComparison, dims=2);
+	accuracy = mean(correctClassifications);
 end;
 
 accuracy = function (target::AbstractArray{Bool,2},
