@@ -74,16 +74,14 @@ end
 
 normalizeMinMax! = function (inputs::AbstractArray{Float32,2},
 	minMax::NTuple{2, AbstractArray{<:Real,2}})
-	_, x = size(inputs)
-	for i in 1:x
+	for i in 1:size(out,2)
 		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
 	end
 end
 
 normalizeMinMax! = function (inputs::AbstractArray{Float32,2})
-	_, x = size(inputs)
 	minMax = calculateMinMaxNormalizationParameters(inputs)
-	for i in 1:x
+	for i in 1:size(out,2)
 		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
 	end
 end
@@ -91,8 +89,7 @@ end
 normalizeMinMax = function (inputs::AbstractArray{Float32,2},
 	minMax::NTuple{2, AbstractArray{<:Real,2}}=())
 	out = copy(inputs)
-	_, x = size(out)
-	for i in 1:x
+	for i in 1:size(out,2)
 		out[:, i] = maxMinNorm(out[:, i], minMax[1][i], minMax[2][i])
 	end
 	return out
@@ -101,8 +98,7 @@ end
 normalizeMinMax = function (inputs::AbstractArray{Float32,2})
 	out = copy(inputs)
 	minMax = calculateMinMaxNormalizationParameters(out)
-	_, x = size(out)
-	for i in 1:x
+	for i in 1:size(out,2)
 		out[:, i] = maxMinNorm(out[:, i], minMax[1][i], minMax[2][i])
 	end
 	return out
@@ -111,16 +107,14 @@ end
 
 normalizeZeroMean! = function (inputs::AbstractArray{Float32,2},
 		meanStd::NTuple{2, AbstractArray{<:Real,2}})
-	_, x = size(inputs)
-	for i in 1:x
+	for i in 1:size(out,2)
 		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
 	end
 end
 
 normalizeZeroMean! = function (inputs::AbstractArray{Float32,2})
 	meanStd = calculateZeroMeanNormalizationParameters(inputs)
-	_, x = size(inputs)
-	for i in 1:x
+	for i in 1:size(out,2)
 		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
 	end
 end
@@ -128,8 +122,7 @@ end
 normalizeZeroMean = function (inputs::AbstractArray{Float32,2},
 		meanStd::NTuple{2, AbstractArray{<:Real,2}})
 	out = copy(inputs)
-	_, x = size(out)
-	for i in 1:x
+	for i in 1:size(out,2)
 		out[:, i] = media0Norm(out[:, i], meanStd[1][i], meanStd[2][i])
 	end
 	return out
@@ -138,17 +131,25 @@ end
 normalizeZeroMean = function (inputs::AbstractArray{Float32,2})
 	out = copy(inputs)
 	meanStd = calculateZeroMeanNormalizationParameters(out)
-	_, x = size(out)
-	for i in 1:x
+	for i in 1:size(out,2)
 		out[:, i] = media0Norm(out[:, i], meanStd[1][i], meanStd[2][i])
 	end
 	return out
 end
 
 #3 (dificultad media)
-classifyOutputs = function (outputs::AbstractArray{<:Real,2})
-	
-end;
+classifyOutputs = function (outputs::AbstractArray{<:Real,2}, threshold = 0.5)
+	out = falses(size(outputs))
+	if size(outputs, 2) == 1
+		for i in 1:size(outputs, 1)
+			out[i] = outputs[i]>= threshold
+		end
+	else
+		(_,indicesMaxEachInstance) = findmax(outputs, dims=2)
+		out[indicesMaxEachInstance] .= true
+	end
+	return out
+end
 
 
 #4 (dificultad media) Página 11
