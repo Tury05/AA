@@ -139,24 +139,74 @@ end;
 
 
 #5 (dificultad alta)
-classRNA = function (topology::AbstractArray{<:Int,1},
-		funActivacion::AbstractArray{Function,1},
+function classRNA(nEntradas::Int, nSalidas::Int,
+		topology::AbstractArray{<:Int,1},
+		funActivacion::Any=[])
+	if isempty(topology)
+		throw(ArgumentError("invalid Array dimensions"))
+	end;
+	if isempty(funActivacion)
+		funActivacion = repeat([σ], length(topology))
+	end;
+	if length(topology) != length(funActivacion)
+		throw(ArgumentError("topology and funActivacion must have the same length"))
+	end;
+
+	ann = Chain();
+
+	numInputsLayer = nEntradas;
+
+	for i in 1:length(topology)
+		ann = Chain(ann..., Dense(numInputsLayer, topology[i], funActivacion[i]) );
+		numInputsLayer = topology[i];
+	end;
+
+	if nSalidas == 2
+		Chain(ann..., Dense(numInputsLayer, 1, σ))
+	elseif nSalidas > 2
+		ann = Chain(ann..., Dense(numInputsLayer, nSalidas, identity))
+		Chain(ann..., softmax)
+	else
+		throw(ArgumentError("nSalidas must be >= 2"))
+	end;
+end;
+
+function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01)
+	nSalidas = size(last(dataset), 2);
+	nSalidas = if nSalidas == 1 2 else nSalidas end;
+	ann = classRNA(size((first(dataset)), 2), nSalidas, topology);
+
+	e = 0;
+	l = Inf;
+	losses = [];
+	
+	loss(x,y) = (size(y,1) == 1) ? Losses.binarycrossentropy(ann(x),y) : Losses.crossentropy(ann(x),y);
+	
+	while e < maxEpochs && l > minLoss
+		Flux.train!(loss, params(ann), [(first(dataset)', last(dataset)')], ADAM(learningRate));
+		l = loss(first(dataset)', last(dataset)');
+		e += 1;
+		losses = cat(losses, l, dims=1);
+	end;
+
+	return (ann, losses);
 	
 end;
 
-entrenarClassRNA = function (topology::AbstractArray{<:Int,1},
-		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01)
-	
-end;
-
-entrenarClassRNA = function (topology::AbstractArray{<:Int,1},
+function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01)
 	
+	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)), maxEpochs, minLoss, learningRate);
 end;
 
 
 #6 (probar las funciones)
+
+a = [1 2; 3 4; 5 6; 7 8]
+
+b = [true false false; false true false; false false true; true false false]
+
+ann = entrenarClassRNA([2,2], (a,b), 10)
