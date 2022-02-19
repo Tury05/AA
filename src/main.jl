@@ -56,7 +56,7 @@ for i in 1:(c-1)
 end;
 
 #1
-oneHotEncoding = function (feature::AbstractArray{<:Any,1},classes::AbstractArray{<:Any,1}=[])
+function oneHotEncoding(feature::AbstractArray{<:Any,1},classes::AbstractArray{<:Any,1}=[])
 	if length(classes) == 2
 		vB = classes[1] .== feature
 		m = reshape(vB, :, 1)
@@ -78,7 +78,7 @@ oneHotEncoding(feature::AbstractArray{<:Any,1}) = oneHotEncoding(feature, unique
 
 	
 
-oneHotEncoding = function (feature::AbstractArray{<:Bool,1})
+function oneHotEncoding(feature::AbstractArray{<:Bool,1})
 	m = reshape(feature, :, 1)
 	return m
 end;
