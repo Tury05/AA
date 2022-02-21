@@ -1,59 +1,10 @@
 using DelimitedFiles;
 using Statistics;
-using Flux
-using Flux.Losses
+using Flux;
+using Flux.Losses;
+using Random;
 
-maxMinNorm = function (v, min, max)
-	return (v .- min)./(max .- min);
-end;
-
-media0Norm = function (v, avg, std)
-	return (v .- avg)./std;
-end;
-
-dataset = readdlm("./BBDD/iris/iris.data", ',');
-f, c = size(dataset);
-
-inDS = dataset[:, 1:c-1];
-inDS[:, 1] .= 1; 
-outDS = dataset[:, c];
-categOutDS = unique(outDS);
-
-@assert length(categOutDS) > 2
-
-target = if length(categOutDS) == 2
-		categOutDS[1] .== outDS
-	else
-		map(x -> x .== categOutDS, outDS)
-	end;
-
-maxIn = maximum(inDS, dims=1);
-minIn = minimum(inDS, dims=1);
-avgIn = mean(inDS, dims=1);
-stdIn = std(inDS, dims=1);
-
-indexNullColumn = last.(Tuple.(findall((maxIn .== minIn) .* (stdIn .== 0))));
-
-if !isempty(indexNullColumn)
-	c-=1;
-	inDS = inDS[:, 1:end .!= indexNullColumn];
-	maxIn = maxIn[:, 1:end .!= indexNullColumn];
-	minIn = minIn[:, 1:end .!= indexNullColumn];
-	avgIn = avgIn[:, 1:end .!= indexNullColumn];
-	stdIn = stdIn[:, 1:end .!= indexNullColumn];
-end;
-
-normWithMaxMin = 0.75 .> maxMinNorm(avgIn, minIn, maxIn) .> 0.25;
-
-inputs = Array{Float32, 2}(undef, f, c-1);
-
-for i in 1:(c-1)
-	inputs[:, i] = if(normWithMaxMin[i])
-		maxMinNorm(inDS[:, i], minIn[i], maxIn[i])
-	else
-		media0Norm(inDS[:, i], avgIn[i], stdIn[i])
-	end;
-end;
+# PRACTICA 2
 
 #1
 function oneHotEncoding(feature::AbstractArray{<:Any,1},classes::AbstractArray{<:Any,1}=[])
@@ -261,7 +212,7 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		Flux.train!(loss, params(ann), [(first(dataset)', last(dataset)')], ADAM(learningRate));
 		l = loss(first(dataset)', last(dataset)');
 		e += 1;
-		losses = cat(losses, l, dims=1);
+		push!(losses, l);
 	end;
 
 	return (ann, losses);
@@ -283,3 +234,97 @@ a = [1 2; 3 4; 5 6; 7 8]
 b = [true false false; false true false; false false true; true false false]
 
 ann = entrenarClassRNA([2,2], (a,b), 10)
+
+a = rand(8,2)
+
+b = Array{Bool,1}(rand(8) .> 0.5)
+
+ann = entrenarClassRNA([2,2], (a,b), 10)
+
+# PRACTICA 2
+
+# 1
+function holdOut(N::Int, P::Real)
+	index = randperm(N);
+	ntest = N*P;
+	index[1:ntest], index[ntest:end];
+end;
+
+function holdOut(N::Int, Ptest::Real, Pval::Real)
+	itrain, itest = holdOut(N, Ptest);
+	nval = N*Pval;
+	itrain[nval:end], itest, itrain[1:nval];
+end;
+
+#2
+function entrenarClassRNA(topology::AbstractArray{<:Int,1},
+		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}=
+		([0 0],[false false]),
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}=
+		([0 0],[false false]),
+		maxEpochsVal::Int=20)
+
+	emptytest = testset == ([0 0],[false false]) || testset == ([0 0],reshape([false,false], :, 1));
+	emptyvalid = validset == ([0 0],[false false]) || testset == ([0 0],reshape([false,false], :, 1));
+	inputs = (first(dataset))';
+	outputs = (last(dataset))';
+
+	nSalidas = size(outputs, 1);
+	nSalidas = if nSalidas == 1 2 else nSalidas end;
+	ann = classRNA(size(inputs, 1), nSalidas, topology);
+
+	e = ev = 0;
+	ltrain = ltest = lvalid = lprev = Inf;
+	lossestrain = lossestest = lossesvalid = [];
+	bestRNA = deepcopy(ann);
+	
+	loss(x,y) = (size(y,1) == 1) ? Losses.binarycrossentropy(ann(x),y) : Losses.crossentropy(ann(x),y);
+
+	while e < maxEpochs && ltrain > minLoss && (emptyvalid || ev < maxEpochsVal)
+		Flux.train!(loss, params(ann), [(inputs, outputs)], ADAM(learningRate));
+
+		ltrain = Losses.binarycrossentropy(ann(inputs), outputs);
+
+		push!(lossestrain, ltrain);
+		if !emptytest
+			push!(lossestest, ltest);
+			ltest = loss(ann(first(testset)'), last(testset)');
+		end;
+		if !emptyvalid
+			push!(lossesvalid, lvalid);
+			lvalid = loss(ann(first(validset)'), last(validset)');
+		end;
+
+
+		if emptyvalid
+		elseif lvalid > lprev
+			ev += 1
+		else
+			bestRNA = deepcopy(ann);
+		end;
+
+		lprev = lvalid;
+		e += 1;
+	end;
+
+	if emptyvalid bestRNA = ann end;
+
+	return (bestRNA, lossestrain, lossestest, lossesvalid);
+	
+end;
+
+function entrenarClassRNA(topology::AbstractArray{<:Int,1},
+		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}=
+		([0 0],[false,false]),
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}=
+		([0 0],[false,false]),
+		maxEpochsVal::Int=20)
+	
+	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)),
+		maxEpochs, minLoss, learningRate, (first(testset), reshape(last(testset), :, 1)),
+		(first(validset), reshape(last(validset), :, 1)), maxEpochsVal);
+end;
