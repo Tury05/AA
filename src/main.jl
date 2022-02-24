@@ -260,14 +260,10 @@ end;
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
-		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}=
-		([0 0],[false false]),
-		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}}=
-		([0 0],[false false]),
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		maxEpochsVal::Int=20)
 
-	emptytest = testset == ([0 0],[false false]) || testset == ([0 0],reshape([false,false], :, 1));
-	emptyvalid = validset == ([0 0],[false false]) || testset == ([0 0],reshape([false,false], :, 1));
 	inputs = (first(dataset))';
 	outputs = (last(dataset))';
 
@@ -282,24 +278,19 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 	
 	loss(x,y) = (size(y,1) == 1) ? Losses.binarycrossentropy(ann(x),y) : Losses.crossentropy(ann(x),y);
 
-	while e < maxEpochs && ltrain > minLoss && (emptyvalid || ev < maxEpochsVal)
+	while e < maxEpochs && ltrain > minLoss && ev < maxEpochsVal
 		Flux.train!(loss, params(ann), [(inputs, outputs)], ADAM(learningRate));
 
 		ltrain = Losses.binarycrossentropy(ann(inputs), outputs);
 
 		push!(lossestrain, ltrain);
-		if !emptytest
-			push!(lossestest, ltest);
-			ltest = loss(ann(first(testset)'), last(testset)');
-		end;
-		if !emptyvalid
-			push!(lossesvalid, lvalid);
-			lvalid = loss(ann(first(validset)'), last(validset)');
-		end;
-
-
-		if emptyvalid
-		elseif lvalid > lprev
+		push!(lossestest, ltest);
+		ltest = loss(ann(first(testset)'), last(testset)');
+		
+		push!(lossesvalid, lvalid);
+		lvalid = loss(ann(first(validset)'), last(validset)');
+	
+		if lvalid > lprev
 			ev += 1
 		else
 			bestRNA = deepcopy(ann);
@@ -309,8 +300,6 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		e += 1;
 	end;
 
-	if emptyvalid bestRNA = ann end;
-
 	return (bestRNA, lossestrain, lossestest, lossesvalid);
 	
 end;
@@ -318,10 +307,8 @@ end;
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
-		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}=
-		([0 0],[false,false]),
-		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}}=
-		([0 0],[false,false]),
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		maxEpochsVal::Int=20)
 	
 	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)),
