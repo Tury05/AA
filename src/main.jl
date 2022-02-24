@@ -259,9 +259,9 @@ end;
 #2
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 
 	inputs = (first(dataset))';
@@ -306,15 +306,15 @@ end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 	
 	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)),
 		maxEpochs, minLoss, learningRate, (first(testset), reshape(last(testset), :, 1)),
 		(first(validset), reshape(last(validset), :, 1)), maxEpochsVal);
-end
+end;
 
 
 maxMinNorm = function (v, min, max)
@@ -329,7 +329,6 @@ dataset = readdlm("./BBDD/iris/iris.data", ',');
 f, c = size(dataset);
 
 inDS = dataset[:, 1:c-1];
-inDS[:, 1] .= 1; 
 outDS = dataset[:, c];
 categOutDS = unique(outDS);
 
