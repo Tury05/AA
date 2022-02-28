@@ -325,7 +325,11 @@ end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
 #inDS, outDS = readData("./BBDD/iris/iris.data")
+#inDS = convert(Array{Float32, 2}, inDS)
 #normalizeMinMax!(inDS)
 #outDS = oneHotEncoding(outDS)
 #mi_red = entrenarClassRNA([8, 16, 8], (inDS, outDS))
+#trained_chain = mi_red[1]
+#prueba = trained_chain([a; b; c; d])
+#result = classifyOutputs(transpose(prueba))
 #####################################################
