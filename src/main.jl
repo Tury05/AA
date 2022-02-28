@@ -4,26 +4,31 @@ using Flux;
 using Flux.Losses;
 using Random;
 
-# PRACTICA 2
+maxMinNorm = function (v, min, max)
+	return (v .- min)./(max .- min);
+end;
+
+media0Norm = function (v, avg, std)
+	return (v .- avg)./std;
+end;
+
+function readData(dataset)
+	data = readdlm("./BBDD/iris/iris.data", ',')
+	f, c = size(data);
+
+	inDS = dataset[:, 1:c-1];
+	outDS = dataset[:, c];
+end
 
 #1
 function oneHotEncoding(feature::AbstractArray{<:Any,1},classes::AbstractArray{<:Any,1}=[])
-	if length(classes) == 2
-		vB = classes[1] .== feature
-		m = reshape(vB, :, 1)
-		return m
+	out = if length(classes) == 2
+		classes[1] .== feature
 	else
-		
-		boolM= trues(length(classes) , length(feature))
-		
-		for i in 1:(length(classes))
-			boolM[:,i] = feature .== classes[i]
-		end;
-		
-		return boolM
-	end;
-		
-end;
+		map(x -> x .== classes, feature)
+	end
+	return out
+end
 
 oneHotEncoding(feature::AbstractArray{<:Any,1}) = oneHotEncoding(feature, unique(feature));
 
@@ -47,14 +52,14 @@ end
 
 function normalizeMinMax!(inputs::AbstractArray{Float32,2},
 	minMax::NTuple{2, AbstractArray{<:Real,2}})
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
 	end
 end
 
 function normalizeMinMax!(inputs::AbstractArray{Float32,2})
 	minMax = calculateMinMaxNormalizationParameters(inputs)
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
 	end
 end
@@ -80,14 +85,14 @@ end
 
 function normalizeZeroMean!(inputs::AbstractArray{Float32,2},
 		meanStd::NTuple{2, AbstractArray{<:Real,2}})
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
 	end
 end
 
 function normalizeZeroMean!(inputs::AbstractArray{Float32,2})
 	meanStd = calculateZeroMeanNormalizationParameters(inputs)
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
 	end
 end
@@ -227,19 +232,19 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end;
 
 
-#6 (probar las funciones)
+#'#6 (probar las funciones)
+#
+#a = [1 2; 3 4; 5 6; 7 8]
 
-a = [1 2; 3 4; 5 6; 7 8]
-
-b = [true false false; false true false; false false true; true false false]
-
-ann = entrenarClassRNA([2,2], (a,b), 10)
-
-a = rand(8,2)
-
-b = Array{Bool,1}(rand(8) .> 0.5)
-
-ann = entrenarClassRNA([2,2], (a,b), 10)
+#b = [true false false; false true false; false false true; true false false]
+#
+#ann = entrenarClassRNA([2,2], (a,b), 10)
+#
+#a = rand(8,2)
+#
+#b = Array{Bool,1}(rand(8) .> 0.5)
+#
+#ann = entrenarClassRNA([2,2], (a,b), 10)'
 
 # PRACTICA 3
 
@@ -259,9 +264,9 @@ end;
 #2
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 
 	inputs = (first(dataset))';
@@ -306,65 +311,12 @@ end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 	
 	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)),
 		maxEpochs, minLoss, learningRate, (first(testset), reshape(last(testset), :, 1)),
 		(first(validset), reshape(last(validset), :, 1)), maxEpochsVal);
 end
-
-
-maxMinNorm = function (v, min, max)
-	return (v .- min)./(max .- min);
-end;
-
-media0Norm = function (v, avg, std)
-	return (v .- avg)./std;
-end;
-
-dataset = readdlm("./BBDD/iris/iris.data", ',');
-f, c = size(dataset);
-
-inDS = dataset[:, 1:c-1];
-inDS[:, 1] .= 1; 
-outDS = dataset[:, c];
-categOutDS = unique(outDS);
-
-@assert length(categOutDS) > 2
-
-target = if length(categOutDS) == 2
-		categOutDS[1] .== outDS
-	else
-		map(x -> x .== categOutDS, outDS)
-	end;
-
-maxIn = maximum(inDS, dims=1);
-minIn = minimum(inDS, dims=1);
-avgIn = mean(inDS, dims=1);
-stdIn = std(inDS, dims=1);
-
-indexNullColumn = last.(Tuple.(findall((maxIn .== minIn) .* (stdIn .== 0))));
-
-if !isempty(indexNullColumn)
-	c-=1;
-	inDS = inDS[:, 1:end .!= indexNullColumn];
-	maxIn = maxIn[:, 1:end .!= indexNullColumn];
-	minIn = minIn[:, 1:end .!= indexNullColumn];
-	avgIn = avgIn[:, 1:end .!= indexNullColumn];
-	stdIn = stdIn[:, 1:end .!= indexNullColumn];
-end;
-
-normWithMaxMin = 0.75 .> maxMinNorm(avgIn, minIn, maxIn) .> 0.25;
-
-inputs = Array{Float32, 2}(undef, f, c-1);
-
-for i in 1:(c-1)
-	inputs[:, i] = if(normWithMaxMin[i])
-		maxMinNorm(inDS[:, i], minIn[i], maxIn[i])
-	else
-		media0Norm(inDS[:, i], avgIn[i], stdIn[i])
-	end;
-end;
