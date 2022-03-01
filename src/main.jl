@@ -241,7 +241,7 @@ b = Array{Bool,1}(rand(8) .> 0.5)
 
 ann = entrenarClassRNA([2,2], (a,b), 10)
 
-# PRACTICA 2
+# PRACTICA 3
 
 # 1
 function holdOut(N::Int, P::Real)
@@ -315,3 +315,15 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		maxEpochs, minLoss, learningRate, (first(testset), reshape(last(testset), :, 1)),
 		(first(validset), reshape(last(validset), :, 1)), maxEpochsVal);
 end;
+
+
+#Practica 4
+#1
+function confusionMatrix(outputs::AbstractArray{Bool,1}, target::AbstractArray{Bool,1})
+
+ vp = 0, fp = 0, vn = 0, fn = 0;
+
+	if outputs .== true && target .== true
+		vp += 1;
+	end;
+	
