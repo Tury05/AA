@@ -321,9 +321,9 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
-		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 	
@@ -334,30 +334,30 @@ end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
 #-----Leemos datos y normalizamos-------
-#inDS, outDS = readData("./BBDD/iris/iris.data")
-#inDS = convert(Array{Float32, 2}, inDS)
-#normalizeMinMax!(inDS)
-#outDS = oneHotEncoding(outDS)
+#inDS, outDS = readData("./BBDD/iris/iris.data");
+#inDS = convert(Array{Float32, 2}, inDS);
+#normalizeMinMax!(inDS);
+#outDS = oneHotEncoding(outDS);
 #-----Creamos datasets de entrenamiento, test y validacion
-#dataset = (inDS, outDS)
-#indexTrain, indexTest, indexValid = holdOut(size(inDS, 1), 0.7, 0.1)
-#trainDS = subArray(dataset, indexTrain)
-#testDS = subArray(dataset, indexTest)
-#validDS = subArray(dataset, indexValid)
-#inTrain = trainDS[:, 1:size(trainDS, 2)-3]
-#outTrain = trainDS[:, size(trainDS, 2)-2:size(trainDS, 2)]
-#outTrain = convert(Array{Bool, 2}, outTrain)
-#inTest = testDS[:, 1:size(testDS, 2)-3]
-#outTest = testDS[:, size(testDS, 2)-2:size(testDS, 2)]
-#outTest = convert(Array{Bool, 2}, outTest)
-#inValid = testDS[:, 1:size(testDS, 2)-3]
-#outValid = validDS[:, size(validDS, 2)-2:size(validDS, 2)]
-#outValid = convert(Array{Bool, 2}, outValid)
+#dataset = cat(inDS, outDS, dims = 2);
+#indexTrain, indexTest, indexValid = holdOut(size(inDS, 1), 0.7, 0.1);
+#trainDS = subArray(dataset, indexTrain);
+#testDS = subArray(dataset, indexTest);
+#validDS = subArray(dataset, indexValid);
+#inTrain = trainDS[:, 1:size(trainDS, 2)-3];
+#outTrain = trainDS[:, size(trainDS, 2)-2:size(trainDS, 2)];
+#outTrain = convert(Array{Bool, 2}, outTrain);
+#inTest = testDS[:, 1:size(testDS, 2)-3];
+#outTest = testDS[:, size(testDS, 2)-2:size(testDS, 2)];
+#outTest = convert(Array{Bool, 2}, outTest);
+#inValid = testDS[:, 1:size(testDS, 2)-3];
+#outValid = validDS[:, size(validDS, 2)-2:size(validDS, 2)];
+#outValid = convert(Array{Bool, 2}, outValid);
 #------Entrenamos red neuronal--------
-#mi_red = entrenarClassRNA([8, 16, 8], (inTrain, outTrain), (inTest), (outTest), (inValid, outValid))
-#trained_chain = mi_red[1]
-#prueba = trained_chain([a; b; c; d])
-#result = classifyOutputs(transpose(prueba))
+#mi_red = entrenarClassRNA([8, 16, 8], (inTrain, outTrain), (inTest), (outTest), (inValid, outValid));
+#trained_chain = mi_red[1];
+#prueba = trained_chain([a; b; c; d]);
+#result = classifyOutputs(transpose(prueba));
 #####################################################
 
 
