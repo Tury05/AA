@@ -359,3 +359,40 @@ end
 #prueba = trained_chain([a; b; c; d])
 #result = classifyOutputs(transpose(prueba))
 #####################################################
+
+
+#Practica 4
+
+function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
+
+	vaux = v1 .== v2;
+	vaux2 = vaux .== v1;
+	vp = 0; vn = 0; fp = 0; fn = 0;
+	
+	verd = findall(vaux)
+	pos = findall(vaux2)
+	
+	vp = length(findall(verd.==pos));
+	vn = length(verd) - vp;
+	fp = length(pos) - vp;
+	fn = length(vaux) - (vp+vn+fp);
+	
+	accuracy = (vn + vp)/(vn+vp+fn+fp);
+	error_rate = (fn+fp)/(vn+vp+fn+fp);
+	sensitivity = vp/(fp+vn);
+	specificity = vn/(fp+vn);
+	pos_pred_val= vp/(vp+fp);
+	neg_pred_val= vn/(vn+fn);
+	F1score = 2*(sensitivity * pos_pred_val / sensitivity + pos_pred_val);
+	confM = [vp fp; vn fn];
+	
+	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
+	
+	
+	
+end;
+			
+	
+	
+	
+	
