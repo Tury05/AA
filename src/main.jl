@@ -253,14 +253,23 @@ end;
 # 1
 function holdOut(N::Int, P::Real)
 	index = randperm(N);
-	ntest = N*P;
+	ntest = floor(Int,N*P);
 	index[1:ntest], index[ntest:end];
 end;
 
 function holdOut(N::Int, Ptest::Real, Pval::Real)
 	itrain, itest = holdOut(N, Ptest);
-	nval = N*Pval;
+	nval = floor(Int, N*Pval);
 	itrain[nval:end], itest, itrain[1:nval];
+end;
+
+function subArray(dataset::AbstractArray{<:Float32,2},
+	 			indexes::Array{Int64,1})
+	subArr = Array{Float32, 2}(undef, size(indexes, 1), size(dataset, 2))
+	for i in 1:length(indexes)
+		subArr[i, :] = dataset[indexes[i], :]
+	end
+	return subArr
 end;
 
 #2
@@ -324,11 +333,28 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
+#-----Leemos datos y normalizamos-------
 #inDS, outDS = readData("./BBDD/iris/iris.data")
 #inDS = convert(Array{Float32, 2}, inDS)
 #normalizeMinMax!(inDS)
 #outDS = oneHotEncoding(outDS)
-#mi_red = entrenarClassRNA([8, 16, 8], (inDS, outDS))
+#-----Creamos datasets de entrenamiento, test y validacion
+#dataset = (inDS, outDS)
+#indexTrain, indexTest, indexValid = holdOut(size(inDS, 1), 0.7, 0.1)
+#trainDS = subArray(dataset, indexTrain)
+#testDS = subArray(dataset, indexTest)
+#validDS = subArray(dataset, indexValid)
+#inTrain = trainDS[:, 1:size(trainDS, 2)-3]
+#outTrain = trainDS[:, size(trainDS, 2)-2:size(trainDS, 2)]
+#outTrain = convert(Array{Bool, 2}, outTrain)
+#inTest = testDS[:, 1:size(testDS, 2)-3]
+#outTest = testDS[:, size(testDS, 2)-2:size(testDS, 2)]
+#outTest = convert(Array{Bool, 2}, outTest)
+#inValid = testDS[:, 1:size(testDS, 2)-3]
+#outValid = validDS[:, size(validDS, 2)-2:size(validDS, 2)]
+#outValid = convert(Array{Bool, 2}, outValid)
+#------Entrenamos red neuronal--------
+#mi_red = entrenarClassRNA([8, 16, 8], (inTrain, outTrain), (inTest), (outTest), (inValid, outValid))
 #trained_chain = mi_red[1]
 #prueba = trained_chain([a; b; c; d])
 #result = classifyOutputs(transpose(prueba))
