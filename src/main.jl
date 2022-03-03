@@ -413,3 +413,61 @@ while rep
 	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
 	print(rep)
 end;
+
+
+function confusionMatrix(outputs::AbstractArray{Bool,2},
+	targets::AbstractArray{Bool,2}, weighted::Bool)
+	
+	@assert(all([in(output, unique(targets)) for output in outputs]));
+
+	numClasses = size(targets, 2);
+	numInstances =size(targets, 1);
+
+	if numClasses == 1
+		return confusionMatrix(outputs[:,1], target[:,1]);
+	end;
+
+	matrix = zeros(numClasses, numClasses);
+
+	sensibilidades = Array{Float32, 1}(undef, numClasses);
+	especificidades = Array{Float32, 1}(undef, numClasses);
+	VPPs = Array{Float32, 1}(undef, numClasses);
+	VPNs  = Array{Float32, 1}(undef, numClasses);
+	F1s = Array{Float32, 1}(undef, numClasses);
+
+	for i in 1:numClasses
+		_,_,sensibilidades[i],especificidades[i],VPPs[i],VPNs[i],F1s[i],_ =
+			confusionMatrix(outputs[:,i], targets[:,i]);
+	end;
+
+	for i in 1:numInstances
+		y = findfirst(outputs[i,:]);
+		x = findfirst(targets[i,:]);
+
+		matrix[y,x] += 1;
+	end
+
+	precision = accuracy(targets, outputs);
+
+	if weighted
+		ponderacion = mapslices(r -> count(r)/numInstances, targets, dims=1);
+
+		return precision,
+			1-precision,
+			mean(sensibilidades.*ponderacion),
+			mean(especificidades.*ponderacion),
+			mean(VPPs.*ponderacion),
+			mean(VPNs.*ponderacion),
+			mean(F1s.*ponderacion),
+			matrix;
+	else
+		return precision,
+			1-precision,
+			mean(sensibilidades),
+			mean(especificidades),
+			mean(VPPs),
+			mean(VPNs),
+			mean(F1s),
+			matrix;
+	end;
+end;
