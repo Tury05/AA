@@ -333,7 +333,7 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
-<<<<<<< HEAD
+#<<<<<<< HEAD
 inDS, outDS = readData("./BBDD/iris/iris.data")
 inDS = convert(Array{Float32, 2}, inDS)
 normalizeMinMax!(inDS)
@@ -342,40 +342,6 @@ outDS = oneHotEncoding(outDS)
 #trained_chain = mi_red[1]
 #prueba = trained_chain([a; b; c; d])
 #result = classifyOutputs(transpose(prueba))
-#####################################################
-
-# PRACTICA 4.1
-
-
-
-# PRACTICA 4.2
-
-numClasses = size(outDS, 2);
-numInstances =size(outDS, 1);
-rep = true;
-outputs = Array{Float32,2}(undef, numInstances, numClasses);
-
-
-while rep
-
-	for numClass in 1:numClasses
-		model,_ = entrenarClassRNA([8,16,8], (inDS, outDS[:, numClass]));
-		global outputs[:, numClass] = model(inDS');
-	end;
-
-	vmax = maximum(outputs, dims=2);
-	global outputs = (outputs .== vmax);
-	print(sum(unique(outputs, dims=1), dims=1));
-	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
-	print(rep)
-end;
-
-=======
-#-----Leemos datos y normalizamos-------
-#inDS, outDS = readData("./BBDD/iris/iris.data");
-#inDS = convert(Array{Float32, 2}, inDS);
-#normalizeMinMax!(inDS);
-#outDS = oneHotEncoding(outDS);
 #-----Creamos datasets de entrenamiento, test y validacion
 #dataset = cat(inDS, outDS, dims = 2);
 #indexTrain, indexTest, indexValid = holdOut(size(inDS, 1), 0.7, 0.1);
@@ -398,8 +364,7 @@ end;
 #result = classifyOutputs(transpose(prueba));
 #####################################################
 
-
-#Practica 4
+# PRACTICA 4.1
 
 function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 
@@ -425,13 +390,26 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	confM = [vp fp; vn fn];
 	
 	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
-	
-	
-	
 end;
-			
-	
-	
-	
-	
->>>>>>> origin/master
+
+# PRACTICA 4.2
+
+numClasses = size(outDS, 2);
+numInstances =size(outDS, 1);
+rep = true;
+outputs = Array{Float32,2}(undef, numInstances, numClasses);
+
+
+while rep
+
+	for numClass in 1:numClasses
+		model,_ = entrenarClassRNA([8,16,8], (inDS, outDS[:, numClass]));
+		global outputs[:, numClass] = model(inDS');
+	end;
+
+	vmax = maximum(outputs, dims=2);
+	global outputs = (outputs .== vmax);
+	print(sum(unique(outputs, dims=1), dims=1));
+	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
+	print(rep)
+end;
