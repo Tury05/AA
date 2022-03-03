@@ -324,12 +324,39 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
-#inDS, outDS = readData("./BBDD/iris/iris.data")
-#inDS = convert(Array{Float32, 2}, inDS)
-#normalizeMinMax!(inDS)
-#outDS = oneHotEncoding(outDS)
+inDS, outDS = readData("./BBDD/iris/iris.data")
+inDS = convert(Array{Float32, 2}, inDS)
+normalizeMinMax!(inDS)
+outDS = oneHotEncoding(outDS)
 #mi_red = entrenarClassRNA([8, 16, 8], (inDS, outDS))
 #trained_chain = mi_red[1]
 #prueba = trained_chain([a; b; c; d])
 #result = classifyOutputs(transpose(prueba))
 #####################################################
+
+# PRACTICA 4.1
+
+
+
+# PRACTICA 4.2
+
+numClasses = size(outDS, 2);
+numInstances =size(outDS, 1);
+rep = true;
+outputs = Array{Float32,2}(undef, numInstances, numClasses);
+
+
+while rep
+
+	for numClass in 1:numClasses
+		model,_ = entrenarClassRNA([8,16,8], (inDS, outDS[:, numClass]));
+		global outputs[:, numClass] = model(inDS');
+	end;
+
+	vmax = maximum(outputs, dims=2);
+	global outputs = (outputs .== vmax);
+	print(sum(unique(outputs, dims=1), dims=1));
+	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
+	print(rep)
+end;
+
