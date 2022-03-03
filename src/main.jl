@@ -4,30 +4,37 @@ using Flux;
 using Flux.Losses;
 using Random;
 
-# PRACTICA 2
+maxMinNorm = function (v, min, max)
+	return (v .- min)./(max .- min);
+end;
+
+media0Norm = function (v, avg, std)
+	return (v .- avg)./std;
+end;
+
+function readData(dataset)
+	data = readdlm(dataset, ',')
+	f, c = size(data);
+
+	inDS = data[:, 1:c-1];
+	outDS = data[:, c];
+	return inDS, outDS
+end
 
 #1
 function oneHotEncoding(feature::AbstractArray{<:Any,1},classes::AbstractArray{<:Any,1}=[])
 	if length(classes) == 2
-		vB = classes[1] .== feature
-		m = reshape(vB, :, 1)
-		return m
+		out = classes[1] .== feature
 	else
-		
-		boolM= trues(length(classes) , length(feature))
-		
-		for i in 1:(length(classes))
-			boolM[:,i] = feature .== classes[i]
-		end;
-		
-		return boolM
-	end;
-		
-end;
+		out = Array{Bool, 2}(undef, length(feature), length(classes))
+		for i in 1:size(out, 1)
+			out[i, :] = feature[i].==classes
+		end
+	end
+	return out
+end
 
 oneHotEncoding(feature::AbstractArray{<:Any,1}) = oneHotEncoding(feature, unique(feature));
-
-	
 
 function oneHotEncoding(feature::AbstractArray{<:Bool,1})
 	m = reshape(feature, :, 1)
@@ -47,14 +54,14 @@ end
 
 function normalizeMinMax!(inputs::AbstractArray{Float32,2},
 	minMax::NTuple{2, AbstractArray{<:Real,2}})
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
 	end
 end
 
 function normalizeMinMax!(inputs::AbstractArray{Float32,2})
 	minMax = calculateMinMaxNormalizationParameters(inputs)
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = maxMinNorm(inputs[:, i], minMax[1][i], minMax[2][i])
 	end
 end
@@ -80,14 +87,14 @@ end
 
 function normalizeZeroMean!(inputs::AbstractArray{Float32,2},
 		meanStd::NTuple{2, AbstractArray{<:Real,2}})
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
 	end
 end
 
 function normalizeZeroMean!(inputs::AbstractArray{Float32,2})
 	meanStd = calculateZeroMeanNormalizationParameters(inputs)
-	for i in 1:size(out,2)
+	for i in 1:size(inputs,2)
 		inputs[:, i] = media0Norm(inputs[:, i], meanStd[1][i], meanStd[2][i])
 	end
 end
@@ -227,19 +234,19 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end;
 
 
-#6 (probar las funciones)
+#'#6 (probar las funciones)
+#
+#a = [1 2; 3 4; 5 6; 7 8]
 
-a = [1 2; 3 4; 5 6; 7 8]
-
-b = [true false false; false true false; false false true; true false false]
-
-ann = entrenarClassRNA([2,2], (a,b), 10)
-
-a = rand(8,2)
-
-b = Array{Bool,1}(rand(8) .> 0.5)
-
-ann = entrenarClassRNA([2,2], (a,b), 10)
+#b = [true false false; false true false; false false true; true false false]
+#
+#ann = entrenarClassRNA([2,2], (a,b), 10)
+#
+#a = rand(8,2)
+#
+#b = Array{Bool,1}(rand(8) .> 0.5)
+#
+#ann = entrenarClassRNA([2,2], (a,b), 10)'
 
 # PRACTICA 3
 
@@ -259,9 +266,9 @@ end;
 #2
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 
 	inputs = (first(dataset))';
@@ -306,24 +313,60 @@ end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 	
 	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)),
 		maxEpochs, minLoss, learningRate, (first(testset), reshape(last(testset), :, 1)),
 		(first(validset), reshape(last(validset), :, 1)), maxEpochsVal);
-end;
+end
+
+########### PRUEBA ENTRENAMIENTO RNA ################
+#inDS, outDS = readData("./BBDD/iris/iris.data")
+#inDS = convert(Array{Float32, 2}, inDS)
+#normalizeMinMax!(inDS)
+#outDS = oneHotEncoding(outDS)
+#mi_red = entrenarClassRNA([8, 16, 8], (inDS, outDS))
+#trained_chain = mi_red[1]
+#prueba = trained_chain([a; b; c; d])
+#result = classifyOutputs(transpose(prueba))
+#####################################################
 
 
 #Practica 4
-#1
-function confusionMatrix(outputs::AbstractArray{Bool,1}, target::AbstractArray{Bool,1})
 
- vp = 0, fp = 0, vn = 0, fn = 0;
+function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 
-	if outputs .== true && target .== true
-		vp += 1;
-	end;
+	vaux = v1 .== v2;
+	vaux2 = vaux .== v1;
+	vp = 0; vn = 0; fp = 0; fn = 0;
+	
+	verd = findall(vaux)
+	pos = findall(vaux2)
+	
+	vp = length(findall(verd.==pos));
+	vn = length(verd) - vp;
+	fp = length(pos) - vp;
+	fn = length(vaux) - (vp+vn+fp);
+	
+	accuracy = (vn + vp)/(vn+vp+fn+fp);
+	error_rate = (fn+fp)/(vn+vp+fn+fp);
+	sensitivity = vp/(fp+vn);
+	specificity = vn/(fp+vn);
+	pos_pred_val= vp/(vp+fp);
+	neg_pred_val= vn/(vn+fn);
+	F1score = 2*(sensitivity * pos_pred_val / sensitivity + pos_pred_val);
+	confM = [vp fp; vn fn];
+	
+	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
+	
+	
+	
+end;
+			
+	
+	
+	
 	
