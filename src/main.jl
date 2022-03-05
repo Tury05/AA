@@ -253,14 +253,23 @@ end;
 # 1
 function holdOut(N::Int, P::Real)
 	index = randperm(N);
-	ntest = N*P;
+	ntest = floor(Int,N*P);
 	index[1:ntest], index[ntest:end];
 end;
 
 function holdOut(N::Int, Ptest::Real, Pval::Real)
 	itrain, itest = holdOut(N, Ptest);
-	nval = N*Pval;
+	nval = floor(Int, N*Pval);
 	itrain[nval:end], itest, itrain[1:nval];
+end;
+
+function subArray(dataset::AbstractArray{<:Float32,2},
+	 			indexes::Array{Int64,1})
+	subArr = Array{Float32, 2}(undef, size(indexes, 1), size(dataset, 2))
+	for i in 1:length(indexes)
+		subArr[i, :] = dataset[indexes[i], :]
+	end
+	return subArr
 end;
 
 #2
@@ -312,9 +321,9 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
-		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 	
@@ -324,18 +333,38 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
-#inDS, outDS = readData("./BBDD/iris/iris.data")
-#inDS = convert(Array{Float32, 2}, inDS)
-#normalizeMinMax!(inDS)
-#outDS = oneHotEncoding(outDS)
+#<<<<<<< HEAD
+inDS, outDS = readData("./BBDD/iris/iris.data")
+inDS = convert(Array{Float32, 2}, inDS)
+normalizeMinMax!(inDS)
+outDS = oneHotEncoding(outDS)
 #mi_red = entrenarClassRNA([8, 16, 8], (inDS, outDS))
 #trained_chain = mi_red[1]
 #prueba = trained_chain([a; b; c; d])
 #result = classifyOutputs(transpose(prueba))
+#-----Creamos datasets de entrenamiento, test y validacion
+#dataset = cat(inDS, outDS, dims = 2);
+#indexTrain, indexTest, indexValid = holdOut(size(inDS, 1), 0.7, 0.1);
+#trainDS = subArray(dataset, indexTrain);
+#testDS = subArray(dataset, indexTest);
+#validDS = subArray(dataset, indexValid);
+#inTrain = trainDS[:, 1:size(trainDS, 2)-3];
+#outTrain = trainDS[:, size(trainDS, 2)-2:size(trainDS, 2)];
+#outTrain = convert(Array{Bool, 2}, outTrain);
+#inTest = testDS[:, 1:size(testDS, 2)-3];
+#outTest = testDS[:, size(testDS, 2)-2:size(testDS, 2)];
+#outTest = convert(Array{Bool, 2}, outTest);
+#inValid = testDS[:, 1:size(testDS, 2)-3];
+#outValid = validDS[:, size(validDS, 2)-2:size(validDS, 2)];
+#outValid = convert(Array{Bool, 2}, outValid);
+#------Entrenamos red neuronal--------
+#mi_red = entrenarClassRNA([8, 16, 8], (inTrain, outTrain), (inTest), (outTest), (inValid, outValid));
+#trained_chain = mi_red[1];
+#prueba = trained_chain([a; b; c; d]);
+#result = classifyOutputs(transpose(prueba));
 #####################################################
 
-
-#Practica 4
+# PRACTICA 4.1
 
 function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 
@@ -360,9 +389,6 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	confM = [vp fp; vn fn];
 	
 	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
-	
-	
-	
 end;
 			
 function confusionMatrix(v1::AbstractArray{<:Real}, v2::AbstractArray{<:Real}, umbral::Real)
@@ -373,5 +399,83 @@ function confusionMatrix(v1::AbstractArray{<:Real}, v2::AbstractArray{<:Real}, u
 	
 end;
 	
+
+# PRACTICA 4.2
+
+numClasses = size(outDS, 2);
+numInstances =size(outDS, 1);
+rep = true;
+outputs = Array{Float32,2}(undef, numInstances, numClasses);
+
+
+while rep
+
+	for numClass in 1:numClasses
+		model,_ = entrenarClassRNA([8,16,8], (inDS, outDS[:, numClass]));
+		global outputs[:, numClass] = model(inDS');
+	end;
+
+	vmax = maximum(outputs, dims=2);
+	global outputs = (outputs .== vmax);
+	print(sum(unique(outputs, dims=1), dims=1));
+	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
+	print(rep)
+end;
+
+
+function confusionMatrix(outputs::AbstractArray{Bool,2},
+	targets::AbstractArray{Bool,2}, weighted::Bool)
 	
-	
+	@assert(all([in(output, unique(targets)) for output in outputs]));
+
+	numClasses = size(targets, 2);
+	numInstances =size(targets, 1);
+
+	if numClasses == 1
+		return confusionMatrix(outputs[:,1], target[:,1]);
+	end;
+
+	matrix = zeros(numClasses, numClasses);
+
+	sensibilidades = Array{Float32, 1}(undef, numClasses);
+	especificidades = Array{Float32, 1}(undef, numClasses);
+	VPPs = Array{Float32, 1}(undef, numClasses);
+	VPNs  = Array{Float32, 1}(undef, numClasses);
+	F1s = Array{Float32, 1}(undef, numClasses);
+
+	for i in 1:numClasses
+		_,_,sensibilidades[i],especificidades[i],VPPs[i],VPNs[i],F1s[i],_ =
+			confusionMatrix(outputs[:,i], targets[:,i]);
+	end;
+
+	for i in 1:numInstances
+		y = findfirst(outputs[i,:]);
+		x = findfirst(targets[i,:]);
+
+		matrix[y,x] += 1;
+	end
+
+	precision = accuracy(targets, outputs);
+
+	if weighted
+		ponderacion = mapslices(r -> count(r)/numInstances, targets, dims=1);
+
+		return precision,
+			1-precision,
+			mean(sensibilidades.*ponderacion),
+			mean(especificidades.*ponderacion),
+			mean(VPPs.*ponderacion),
+			mean(VPNs.*ponderacion),
+			mean(F1s.*ponderacion),
+			matrix;
+	else
+		return precision,
+			1-precision,
+			mean(sensibilidades),
+			mean(especificidades),
+			mean(VPPs),
+			mean(VPNs),
+			mean(F1s),
+			matrix;
+	end;
+end;
