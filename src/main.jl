@@ -340,13 +340,12 @@ end
 function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 
 	vaux = v1 .== v2;
-	vaux2 = vaux .== v1;
 	vp = 0; vn = 0; fp = 0; fn = 0;
 	
 	verd = findall(vaux)
-	pos = findall(vaux2)
+	pos = findall(v2)
 	
-	vp = length(findall(verd.==pos));
+	vp = length(findall(vaux .&& v2 .== 1));
 	vn = length(verd) - vp;
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
@@ -366,7 +365,13 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	
 end;
 			
+function confusionMatrix(v1::AbstractArray{<:Real}, v2::AbstractArray{<:Real}, umbral::Real)
+
+	vaux1 = collect(v1 .> umbral);
+	vaux2 = collect(v2 .> umbral);
+	confusionMatrix(vaux1, vaux2);
 	
+end;
 	
 	
 	
