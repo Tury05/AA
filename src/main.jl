@@ -418,7 +418,7 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	verd = findall(vaux)
 	pos = findall(v2)
 	
-	vp = length(findall(vaux && v2 .== 1));
+	vp = length(findall(vaux .&& v2 .== 1));
 	vn = length(verd) - vp;
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
@@ -522,4 +522,37 @@ function confusionMatrix(outputs::AbstractArray{Bool,2},
 			mean(F1s),
 			matrix;
 	end;
+end;
+
+
+
+#Practica 5
+
+function crossvalidation(numPatrones::Int, numConj::Int)
+
+	vConj = collect(1:numConj)
+	val = ceil(Int64, numPatrones/numConj)
+	vPatrones = repeat(vConj,val)
+	vPatrones = getindex(vPatrones, 1:numPatrones)
+	Random.shuffle!(vPatrones)
+end;
+
+
+function crossvalidation(targets::AbstractArray{Bool,2}, subconj::Int)
+
+	m,n = size(targets)
+	indices = zeros(Int, m)
+	
+	for n in eachcol(targets)
+		indices[n] = crossvalidation(sum(n), subconj)
+	end
+	
+	return indices
+end;
+	
+	
+function crossvalidation(targets::AbstractArray{<:Any, 1}, subconj::Int)
+
+	targets2 = oneHotEncoding(targets)
+	crossvalidation(targets2, subconj)
 end;
