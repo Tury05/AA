@@ -523,3 +523,16 @@ function confusionMatrix(outputs::AbstractArray{Bool,2},
 			matrix;
 	end;
 end;
+
+
+
+#Practica 5
+
+function crossvalidation(numPatrones::Int, numConj::Int)
+
+	vConj = collect(1:numConj)
+	val = ceil(Int64, numPatrones/numConj)
+	vPatrones = repeat(vConj,val)
+	vPatrones = getindex(vPatrones, 1:numPatrones)
+	Random.shuffle!(vPatrones)
+end;
