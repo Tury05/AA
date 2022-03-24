@@ -536,3 +536,23 @@ function crossvalidation(numPatrones::Int, numConj::Int)
 	vPatrones = getindex(vPatrones, 1:numPatrones)
 	Random.shuffle!(vPatrones)
 end;
+
+
+function crossvalidation(targets::AbstractArray{Bool,2}, subconj::Int)
+
+	m,n = size(targets)
+	indices = zeros(Int, m)
+	
+	for n in eachcol(targets)
+		indices[n] = crossvalidation(sum(n), subconj)
+	end
+	
+	return indices
+end;
+	
+	
+function crossvalidation(targets::AbstractArray{<:Any, 1}, subconj::Int)
+
+	targets2 = oneHotEncoding(targets)
+	crossvalidation(targets2, subconj)
+end;
