@@ -418,7 +418,7 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	verd = findall(vaux)
 	pos = findall(v2)
 	
-	vp = length(findall(vaux .&& v2 .== 1));
+	vp = length(findall(vaux && v2 .== 1));
 	vn = length(verd) - vp;
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
