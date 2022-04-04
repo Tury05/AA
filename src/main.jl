@@ -10,13 +10,13 @@ using JLD2
 using Images
 
 # Functions that allow the conversion from images to Float64 arrays
-imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float64,2}, gray.(Gray.(image)));
+imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float32,2}, gray.(Gray.(image)));
 imageToGrayArray(image::Array{RGBA{Normed{UInt8,8}},2}) = imageToGrayArray(RGB.(image));
 function imageToColorArray(image::Array{RGB{Normed{UInt8,8}},2})
-    matrix = Array{Float64, 3}(undef, size(image,1), size(image,2), 3)
-    matrix[:,:,1] = convert(Array{Float64,2}, red.(image));
-    matrix[:,:,2] = convert(Array{Float64,2}, green.(image));
-    matrix[:,:,3] = convert(Array{Float64,2}, blue.(image));
+    matrix = Array{Float32, 3}(undef, size(image,1), size(image,2), 3)
+    matrix[:,:,1] = convert(Array{Float32,2}, red.(image));
+    matrix[:,:,2] = convert(Array{Float32,2}, green.(image));
+    matrix[:,:,3] = convert(Array{Float32,2}, blue.(image));
     return matrix;
 end;
 imageToColorArray(image::Array{RGBA{Normed{UInt8,8}},2}) = imageToColorArray(RGB.(image));
@@ -46,6 +46,98 @@ function loadTrainingDataset(positiveFolderName::String, negativeFolderName::Str
     return ([positivesColor; negativesColor], [positivesGray; negativesGray], targets);
 end;
 loadTestDataset() = ((colorMatrix,_) = loadFolderImages("test"); return colorMatrix; );
+
+function loadImage(fileName::String)
+	if  any(uppercase(fileName[end-3:end]) .== [".JPG", ".PNG"])
+        image = load(fileName);
+        # Check that they are color images
+        @assert(isa(image, Array{RGBA{Normed{UInt8,8}},2}) || isa(image, Array{RGB{Normed{UInt8,8}},2}))
+
+        return (imageToColorArray(image), imageToGrayArray(image));
+    else
+    	throw("No es una imagen");
+    end;
+end;
+
+function imageToData(fileName::String)
+
+	image,_ = loadImage(fileName);
+
+	data = Array{Float32, 1}(undef, 9);
+
+	f = convert(Int,round(size(image,1)/7));
+	c = convert(Int,round(size(image,2)/3));
+
+	k = 1
+	for c in 1:3
+		for j in 1:3
+			data[k] = mean(image[(f*(j*2-1)):(f*(j*2)),(c):(c*2),c]);
+			k += 1;
+		end;
+	end;
+
+	return data;
+end;
+
+function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
+
+	santaImages,_ = loadFolderImages(santaFolder);
+	notSantaImages,_ = loadFolderImages(notSantaFolder);
+	images = (santaImages, notSantaImages);
+
+	santaDataset = Array{Float32, 2}(undef, size(santaImages,1), 9);
+	notSantaDataset = Array{Float32, 2}(undef, size(notSantaImages,1), 9);
+	datasets = (santaDataset, notSantaDataset);
+
+	for s in 1:2
+		i = 1
+		for colorMatrix in images[s]
+
+			fil = convert(Int,round(size(colorMatrix,1)/7));
+			col = convert(Int,round(size(colorMatrix,2)/3));
+
+			k = 1
+			for c in 1:3
+				for j in 1:3
+					datasets[s][i,k] = mean(colorMatrix[(fil*(j*2-1)):(fil*(j*2)),col:(col*2),c]);
+					k += 1;
+				end;
+			end;
+
+			i += 1;
+		end;
+	end;
+
+	return datasets;
+end;
+
+function intercalarDataset(a1::AbstractArray{Float32,2}, a2::AbstractArray{Float32,2})
+	f = size(a1,1)*2;
+	c = size(a1,2);
+
+	if f/2 != size(a2,1) && c != size(a2,2)
+		throw("Distinto tamaño de las matrices");
+	end;
+
+	dataset = Array{Float32,2}(undef, f, c);
+
+	for i in 1:(f-1)
+		y = convert(Int,floor(i/2)+1);
+
+		dataset[i,:] = a1[y,:];
+		dataset[i+1,:] = a2[y,:]; 
+	end;
+
+	return dataset;
+end;
+
+santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
+inDS = intercalarDataset(santaData, notSantaData);
+outDS = convert(Array{Bool,1}, mod.(1:size(inDS,1), 2)); 
+mi_red = entrenarClassRNA([9, 16, 1], (inDS, outDS));
+trained_chain = mi_red[1];
+test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
+prueba = trained_chain(santaData[0])
 
 
 maxMinNorm = function (v, min, max)
