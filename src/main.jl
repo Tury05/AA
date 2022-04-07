@@ -364,7 +364,7 @@ end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01)
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.05)
 	
 	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)), maxEpochs, minLoss, learningRate);
 end;
