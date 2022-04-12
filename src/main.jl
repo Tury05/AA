@@ -3,6 +3,7 @@ using Statistics;
 using Flux;
 using Flux.Losses;
 using Random;
+using ScikitLearn;
 
 # Funciones para generar una BD con imagenes
 
@@ -418,7 +419,7 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	verd = findall(vaux)
 	pos = findall(v2)
 	
-	vp = length(findall(vaux .&& v2 .== 1));
+	vp = length(findall(vaux .& v2 .== 1));
 	vn = length(verd) - vp;
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
@@ -556,3 +557,92 @@ function crossvalidation(targets::AbstractArray{<:Any, 1}, subconj::Int)
 	targets2 = oneHotEncoding(targets)
 	crossvalidation(targets2, subconj)
 end;
+
+
+
+#Practica 6
+
+function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inputs::Array{Float64,2}, targets::Array{Any,1}, numFolds::Int64)
+    @assert(size(inputs,1)==length(targets));
+    classes = unique(targets);
+    if modelType==:ANN
+        targets = oneHotEncoding(targets, classes);
+    end;
+    
+    crossValidationIndices = crossvalidation(size(inputs,1), numFolds);
+    testAccuracies = Array{Float64,1}(undef, numFolds);
+    testF1 = Array{Float64,1}(undef, numFolds);
+    
+    for numFold in 1:numFolds
+        if (modelType==:SVM) || (modelType==:DecisionTree) || (modelType==:kNN)
+            trainingInputs = inputs[crossValidationIndices.!=numFold,:];
+            testInputs = inputs[crossValidationIndices.==numFold,:];
+            trainingTargets = targets[crossValidationIndices.!=numFold];
+            testTargets = targets[crossValidationIndices.==numFold];
+        
+            # Seleccionamos algoritmo
+            if modelType==:SVM
+                model = SVC(
+                    kernel = modelHyperparameters["kernel"],
+                    degree = modelHyperparameters["kernelDegree"],
+                    gamma = modelHyperparameters["kernelGamma"],
+                    C = modelHyperparameters["C"]
+                );
+            elseif modelType==:DecisionTree
+                model = DecisionTreeClassifier(max_depth=modelHyperparameters["maxDepth"], random_state=1);
+            elseif modelType==:kNN
+                model = KNeighborsClassifier(modelHyperparameters["numNeighbors"]);
+            end;
+
+            model = fit!(model, trainingInputs, trainingTargets);
+            testOutputs = predict(model, testInputs);
+            (acc, _, _, _, _, _, F1, _) = confusionMatrix(testOutputs, testTargets);
+        else
+            @assert(modelType==:ANN);
+            trainingInputs = inputs[crossValidationIndices.!=numFold,:];
+            testInputs = inputs[crossValidationIndices.==numFold,:];
+            trainingTargets = targets[crossValidationIndices.!=numFold,:];
+            testTargets = targets[crossValidationIndices.==numFold,:];
+            
+            testAccuraciesEachRepetition = Array{Float64,1}(undef, modelHyperparameters["numExecutions"]);
+            testF1EachRepetition = Array{Float64,1}(undef, modelHyperparameters["numExecutions"]);
+            
+            for numTraining in 1:modelHyperparameters["numExecutions"]
+                if modelHyperparameters["validationRatio"]>0
+                    (trainingIndices, validationIndices) = holdOut(size(trainingInputs,1), modelHyperparameters["validationRatio"]*size(trainingInputs,1)/size(inputs,1));
+                    ann, = trainClassANN(modelHyperparameters["topology"], trainingInputs[trainingIndices,:], trainingTargets[trainingIndices,:],
+                        trainingInputs[validationIndices,:], trainingTargets[validationIndices,:], testInputs, testTargets;
+                    maxEpochs=modelHyperparameters["maxEpochs"],
+                    learningRate=modelHyperparameters["learningRate"],
+                    maxEpochsVal=modelHyperparameters["maxEpochsVal"]);
+                else
+                    ann, = trainClassANN(modelHyperparameters["topology"], trainingInputs, trainingTargets, testInputs, testTargets;
+                    maxEpochs=modelHyperparameters["maxEpochs"], learningRate=modelHyperparameters["learningRate"]);
+                end;
+            
+                (testAccuraciesEachRepetition[numTraining], _, _, _, _, _,
+                testF1EachRepetition[numTraining], _) = confusionMatrix(collect(ann(testInputs')'), testTargets);
+            end;
+
+            acc = mean(testAccuraciesEachRepetition);
+            F1 = mean(testF1EachRepetition);
+        end;
+
+        testAccuracies[numFold] = acc;
+        testF1[numFold] = F1;
+        println("Results in test in fold ", numFold, "/", numFolds, ": accuracy:
+                ", 100*testAccuracies[numFold], " %, F1: ", 100*testF1[numFold], " %");
+    end;
+
+    println(modelType, ": Average test accuracy on a ", numFolds, "-fold
+            crossvalidation: ", 100*mean(testAccuracies), ", with a standard deviation of ",
+            100*std(testAccuracies));
+    
+    println(modelType, ": Average test F1 on a ", numFolds, "-fold
+            crossvalidation: ", 100*mean(testF1), ", with a standard deviation of ",
+            100*std(testF1));
+    
+    return (mean(testAccuracies), std(testAccuracies), mean(testF1), std(testF1));
+end;
+
+	
