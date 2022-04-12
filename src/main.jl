@@ -66,13 +66,13 @@ function imageToData(fileName::String)
 
 	data = Array{Float32, 1}(undef, 9);
 
-	f = convert(Int,round(size(image,1)/7));
-	c = convert(Int,round(size(image,2)/3));
+	fil = convert(Int,round(size(image,1)/7));
+	col = convert(Int,round(size(image,2)/3));
 
 	k = 1
-	for c in 1:3
-		for j in 1:3
-			data[k] = mean(image[(f*(j*2-1)):(f*(j*2)),(c):(c*2),c]);
+	for j in 1:3
+		for c in 1:3
+			data[k] = mean(image[(fil*(j*2-1)):(fil*(j*2)),col:(col*2),c]);
 			k += 1;
 		end;
 	end;
@@ -98,8 +98,8 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 			col = convert(Int,round(size(colorMatrix,2)/3));
 
 			k = 1
-			for c in 1:3
-				for j in 1:3
+			for j in 1:3
+				for c in 1:3
 					datasets[s][i,k] = mean(colorMatrix[(fil*(j*2-1)):(fil*(j*2)),col:(col*2),c]);
 					k += 1;
 				end;
@@ -133,8 +133,13 @@ function intercalarDataset(a1::AbstractArray{Float32,2}, a2::AbstractArray{Float
 end;
 
 santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
-inDS = intercalarDataset(santaData, notSantaData);
-outDS = convert(Array{Bool,1}, mod.(1:size(inDS,1), 2)); 
+if true
+	inDS = intercalarDataset(santaData, notSantaData);
+	outDS = convert(Array{Bool,1}, mod.(1:size(inDS,1), 2)); 
+else
+	inDS = cat(santaData, notSantaData, dims=1);
+	outDS = cat(trues(size(santaData, 1)), falses(size(notSantaData, 1)), dims=1);
+end;
 trained_chain, losses = entrenarClassRNA([32, 16, 8], (inDS, outDS), 2000, 0, 0.08);
 plot(1:length(losses), losses);
 test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
