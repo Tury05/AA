@@ -3,11 +3,12 @@ using Statistics;
 using Flux;
 using Flux.Losses;
 using Random;
+using Plots;
 
 # Funciones para generar una BD con imagenes
 
-using JLD2
-using Images
+using JLD2;
+using Images;
 
 # Functions that allow the conversion from images to Float64 arrays
 imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float32,2}, gray.(Gray.(image)));
@@ -134,10 +135,10 @@ end;
 santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
 inDS = intercalarDataset(santaData, notSantaData);
 outDS = convert(Array{Bool,1}, mod.(1:size(inDS,1), 2)); 
-mi_red = entrenarClassRNA([9, 16, 1], (inDS, outDS));
-trained_chain = mi_red[1];
+trained_chain, losses = entrenarClassRNA([32, 16, 8], (inDS, outDS), 2000, 0, 0.08);
+plot(1:length(losses), losses);
 test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
-prueba = trained_chain(santaData[0])
+prueba = trained_chain(test)
 
 
 maxMinNorm = function (v, min, max)
@@ -364,7 +365,7 @@ end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
-		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.05)
+		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01)
 	
 	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)), maxEpochs, minLoss, learningRate);
 end;
@@ -510,7 +511,7 @@ function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
 	verd = findall(vaux)
 	pos = findall(v2)
 	
-	vp = length(findall(vaux .&& v2 .== 1));
+	vp = length(findall(vaux & v2 .== 1));
 	vn = length(verd) - vp;
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
