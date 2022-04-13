@@ -140,8 +140,8 @@ else
 	inDS = cat(santaData, notSantaData, dims=1);
 	outDS = cat(trues(size(santaData, 1)), falses(size(notSantaData, 1)), dims=1);
 end;
-trained_chain, losses = entrenarClassRNA([32, 16, 8], (inDS, outDS), 2000, 0, 0.08);
-plot(1:length(losses), losses);
+trained_chain, losses = entrenarClassRNA([4,3,2], (inDS, outDS), 20000, 0, 0.01);
+plot(1:length(losses), losses)
 test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
 prueba = trained_chain(test)
 
