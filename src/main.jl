@@ -4,6 +4,7 @@ using Flux;
 using Flux.Losses;
 using Random;
 using Plots;
+using ScikitLearn;
 
 # Funciones para generar una BD con imagenes
 
