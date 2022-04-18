@@ -6,6 +6,10 @@ using Random;
 using Plots;
 using ScikitLearn;
 
+@sk_import svm: SVC
+@sk_import tree: DecisionTreeClassifier
+@sk_import neighbors: KNeighborsClassifier
+
 # Funciones para generar una BD con imagenes
 
 using JLD2;
@@ -654,6 +658,7 @@ end;
 
 function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inputs::Array{Float64,2}, targets::Array{<:Any,1}, numFolds::Int64)
     @assert(size(inputs,1)==length(targets));
+    Random.seed!(0);
     
     crossValidationIndices = crossvalidation(size(inputs,1), numFolds);
     testAccuracies = Array{Float64,1}(undef, numFolds);
@@ -664,7 +669,7 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
             trainingInputs = inputs[crossValidationIndices.!=numFold,:];
             testInputs = inputs[crossValidationIndices.==numFold,:];
             trainingTargets = targets[crossValidationIndices.!=numFold,:];
-            testTargets = targets[crossValidationIndices.==numFold],:;
+            testTargets = targets[crossValidationIndices.==numFold,:];
         
             # Seleccionamos algoritmo
             if modelType==:SVM
@@ -680,8 +685,10 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
                 model = KNeighborsClassifier(modelHyperparameters["numNeighbors"]);
             end;
 
+            trainingTargets = (size(trainingTargets,2) == 1) ? trainingTargets[:,1] : trainingTargets;
             model = fit!(model, trainingInputs, trainingTargets);
             testOutputs = predict(model, testInputs);
+            testTargets = (size(testTargets,2) == 1) ? testTargets[:,1] : testTargets;
             (acc, _, _, _, _, _, F1, _) = confusionMatrix(testOutputs, testTargets);
         else
             @assert(modelType==:ANN);
@@ -704,10 +711,10 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
                     (trainingIndices, validationIndices) = holdOut(size(trainingInputs,1), modelHyperparameters["validationRatio"]*size(trainingInputs,1)/size(inputs,1));
                     ann = entrenarClassRNA(modelHyperparameters["topology"], (trainingInputs[trainingIndices,:], trainingTargets[trainingIndices,:]),
                     	(testInputs, testTargets), (trainingInputs[validationIndices,:], trainingTargets[validationIndices,:]),
-                    	modelHyperparameters["maxEpochs"], 0, modelHyperparameters["learningRate"], modelHyperparameters["maxEpochsVal"])[1];
+                    	modelHyperparameters["maxEpochs"], modelHyperparameters["minLoss"], modelHyperparameters["learningRate"], modelHyperparameters["maxEpochsVal"])[1];
                 else
                     ann = entrenarClassRNA(modelHyperparameters["topology"], (trainingInputs, trainingTargets),
-                    	modelHyperparameters["maxEpochs"], 0, modelHyperparameters["learningRate"])[1];
+                    	modelHyperparameters["maxEpochs"], modelHyperparameters["minLoss"], modelHyperparameters["learningRate"])[1];
                 end;
 
                 (testAccuraciesEachRepetition[numTraining], _, _, _, _, _,
@@ -741,30 +748,49 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
     return (mean(testAccuracies), std(testAccuracies), mean(testF1), std(testF1));
 end;
 
-#santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
-#inDS, outDS = randDataset(santaData, notSantaData);
+"""
+santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
+inDS, outDS = randDataset(santaData, notSantaData);
 
-#nInstXset = convert(Int, floor(size(inDS, 1)/3));
-#trainset = inDS[1:nInstXset,:], outDS[1:nInstXset];
-#testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)];
-#validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
+nInstXset = convert(Int, floor(size(inDS, 1)/3));
+trainset = inDS[1:nInstXset,:], outDS[1:nInstXset];
+testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)];
+validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
 
-#trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
-#plosses = plot(lossestrain)
-#plot!(plosses,lossestest)
-#plot!(plosses,lossesvalid)
+trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
+plosses = plot(lossestrain)
+plot!(plosses,lossestest)
+plot!(plosses,lossesvalid)
 
-#using BSON: @save
-#@save "mymodel.bson" trained_chain
+using BSON: @save
+@save "mymodel.bson" trained_chain
 
-#using BSON: @load
-#@load "mymodel.bson" trained_chain
+using BSON: @load
+@load "mymodel.bson" trained_chain
 
-#test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
+test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
 
-#prueba = trained_chain(test)
+prueba = trained_chain(test)
 
-#curvaROC = map(umbral -> (m = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], umbral)[8]; (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))), 0:0.01:1);
-#pROC = plot(curvaROC)
+curvaROC = map(umbral -> (m = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], umbral)[8]; (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))), 0:0.01:1);
+pROC = plot(curvaROC)
 
-#accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], 0.5);
+accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], 0.5);
+
+
+parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
+	"topology"=>[16,8], "maxEpochs"=>100, "learningRate"=>0.01,
+	"minLoss"=>0, "maxEpochsVal"=>10, "normalized"=>true, "umbral"=>0.5);
+modelCrossValidation(:ANN, parameters, inDS, outDS, 10);
+
+parameters = Dict();
+parameters["maxDepth"] = 50;
+modelCrossValidation(:DecisionTree, parameters, inDS, outDS, 10);
+
+parameters = Dict();
+parameters["numNeighbors"] = 5;
+modelCrossValidation(:kNN, parameters, inDS, outDS, 10);
+
+parameters = Dict("kernel" => "rbf", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
+modelCrossValidation(:SVM, parameters, inDS, outDS, 10);
+"""
