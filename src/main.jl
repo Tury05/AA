@@ -12,13 +12,13 @@ using JLD2;
 using Images;
 
 # Functions that allow the conversion from images to Float64 arrays
-imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float32,2}, gray.(Gray.(image)));
+imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float64,2}, gray.(Gray.(image)));
 imageToGrayArray(image::Array{RGBA{Normed{UInt8,8}},2}) = imageToGrayArray(RGB.(image));
 function imageToColorArray(image::Array{RGB{Normed{UInt8,8}},2})
     matrix = Array{Float32, 3}(undef, size(image,1), size(image,2), 3)
-    matrix[:,:,1] = convert(Array{Float32,2}, red.(image));
-    matrix[:,:,2] = convert(Array{Float32,2}, green.(image));
-    matrix[:,:,3] = convert(Array{Float32,2}, blue.(image));
+    matrix[:,:,1] = convert(Array{Float64,2}, red.(image));
+    matrix[:,:,2] = convert(Array{Float64,2}, green.(image));
+    matrix[:,:,3] = convert(Array{Float64,2}, blue.(image));
     return matrix;
 end;
 imageToColorArray(image::Array{RGBA{Normed{UInt8,8}},2}) = imageToColorArray(RGB.(image));
@@ -65,7 +65,7 @@ function imageToData(fileName::String)
 
 	image,_ = loadImage(fileName);
 
-	data = Array{Float32, 1}(undef, 9);
+	data = Array{Float64, 1}(undef, 9);
 
 	fil = convert(Int,round(size(image,1)/7));
 	col = convert(Int,round(size(image,2)/3));
@@ -87,8 +87,8 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 	notSantaImages,_ = loadFolderImages(notSantaFolder);
 	images = (santaImages, notSantaImages);
 
-	santaDataset = Array{Float32, 2}(undef, size(santaImages,1), 9);
-	notSantaDataset = Array{Float32, 2}(undef, size(notSantaImages,1), 9);
+	santaDataset = Array{Float64, 2}(undef, size(santaImages,1), 9);
+	notSantaDataset = Array{Float64, 2}(undef, size(notSantaImages,1), 9);
 	datasets = (santaDataset, notSantaDataset);
 
 	for s in 1:2
@@ -113,38 +113,28 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 	return datasets;
 end;
 
-function intercalarDataset(a1::AbstractArray{Float32,2}, a2::AbstractArray{Float32,2})
-	f = size(a1,1)*2;
-	c = size(a1,2);
+function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
+	inDSLength = size(a1,1)+size(a2,1);
+	perm = randperm(inDSLength);
+	inDS = Array{Float64, 2}(undef, inDSLength, 9);
+	outDS = Array{Bool}(undef, inDSLength);
+	k = 1;
 
-	if f/2 != size(a2,1) && c != size(a2,2)
-		throw("Distinto tamaño de las matrices");
+	for i in 1:size(a1,1)
+		inDS[perm[k],:] = a1[i,:];
+		outDS[perm[k]] = true;
+		k += 1;
 	end;
 
-	dataset = Array{Float32,2}(undef, f, c);
-
-	for i in 1:(f-1)
-		y = convert(Int,floor(i/2)+1);
-
-		dataset[i,:] = a1[y,:];
-		dataset[i+1,:] = a2[y,:]; 
+	for i in 1:size(a2,1)
+		inDS[perm[k],:] = a2[i,:];
+		outDS[perm[k]] = false;
+		k += 1;
 	end;
 
-	return dataset;
+	return (inDS, outDS);
 end;
 
-santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
-if true
-	inDS = intercalarDataset(santaData, notSantaData);
-	outDS = convert(Array{Bool,1}, mod.(1:size(inDS,1), 2)); 
-else
-	inDS = cat(santaData, notSantaData, dims=1);
-	outDS = cat(trues(size(santaData, 1)), falses(size(notSantaData, 1)), dims=1);
-end;
-trained_chain, losses = entrenarClassRNA([4,3,2], (inDS, outDS), 20000, 0, 0.01);
-plot(1:length(losses), losses)
-test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
-prueba = trained_chain(test)
 
 
 maxMinNorm = function (v, min, max)
@@ -423,8 +413,8 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 
-	inputs = (first(dataset))';
-	outputs = (last(dataset))';
+	inputs = dataset[1]';
+	outputs = dataset[2]';
 
 	nSalidas = size(outputs, 1);
 	nSalidas = if nSalidas == 1 2 else nSalidas end;
@@ -440,14 +430,13 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 	while e < maxEpochs && ltrain > minLoss && ev < maxEpochsVal
 		Flux.train!(loss, params(ann), [(inputs, outputs)], ADAM(learningRate));
 
-		ltrain = Losses.binarycrossentropy(ann(inputs), outputs);
+		ltrain = loss(inputs, outputs);
+		ltest = loss(testset[1]', testset[2]');
+		lvalid = loss(validset[1]', validset[2]');
 
 		push!(lossestrain, ltrain);
 		push!(lossestest, ltest);
-		ltest = loss(ann(first(testset)'), last(testset)');
-		
 		push!(lossesvalid, lvalid);
-		lvalid = loss(ann(first(validset)'), last(validset)');
 	
 		if lvalid > lprev
 			ev += 1
@@ -464,23 +453,25 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 end;
 
 function entrenarClassRNA(topology::AbstractArray{<:Int,1},
-		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
-		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
-		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,2}},
+		dataset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		testset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
+		validset::Tuple{AbstractArray{<:Real,2}, AbstractArray{Bool,1}},
 		maxEpochs::Int=1000, minLoss::Real=0, learningRate::Real=0.01,
 		maxEpochsVal::Int=20)
 	
-	return entrenarClassRNA(topology, (first(dataset), reshape(last(dataset), :, 1)),
-		maxEpochs, minLoss, learningRate, (first(testset), reshape(last(testset), :, 1)),
-		(first(validset), reshape(last(validset), :, 1)), maxEpochsVal);
+	return entrenarClassRNA(topology,
+		(first(dataset), reshape(last(dataset), :, 1)),
+		(first(testset), reshape(last(testset), :, 1)),
+		(first(validset), reshape(last(validset), :, 1)),
+		maxEpochs, minLoss, learningRate, maxEpochsVal);
 end
 
 ########### PRUEBA ENTRENAMIENTO RNA ################
 #<<<<<<< HEAD
-inDS, outDS = readData("./BBDD/iris/iris.data")
-inDS = convert(Array{Float32, 2}, inDS)
-normalizeMinMax!(inDS)
-outDS = oneHotEncoding(outDS)
+#inDS, outDS = readData("./BBDD/iris/iris.data")
+#inDS = convert(Array{Float32, 2}, inDS)
+#normalizeMinMax!(inDS)
+#outDS = oneHotEncoding(outDS)
 #mi_red = entrenarClassRNA([8, 16, 8], (inDS, outDS))
 #trained_chain = mi_red[1]
 #prueba = trained_chain([a; b; c; d])
@@ -509,35 +500,36 @@ outDS = oneHotEncoding(outDS)
 
 # PRACTICA 4.1
 
-function confusionMatrix(v1::AbstractArray{Bool,1}, v2::AbstractArray{Bool,1})
+function confusionMatrix(outputs::AbstractArray{Bool,1}, targets::AbstractArray{Bool,1})
 
-	vaux = v1 .== v2;
+	vaux = outputs .== targets;
 	vp = 0; vn = 0; fp = 0; fn = 0;
 	
 	verd = findall(vaux)
-	pos = findall(v2)
+	pos = findall(targets)
 	
-	vp = length(findall(vaux & v2 .== 1));
+	vp = length(findall(vaux .& targets));
 	vn = length(verd) - vp;
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
 	
-	accuracy = (vn + vp)/(vn+vp+fn+fp);
+	accuracy = (vn+vp)/(vn+vp+fn+fp);
 	error_rate = (fn+fp)/(vn+vp+fn+fp);
-	sensitivity = vp/(fp+vn);
-	specificity = vn/(fp+vn);
+	sensitivity = vp/(fn+vp);
+	specificity = vn/(vn+fp);
 	pos_pred_val= vp/(vp+fp);
 	neg_pred_val= vn/(vn+fn);
-	F1score = 2*(sensitivity * pos_pred_val / sensitivity + pos_pred_val);
-	confM = [vp fp; vn fn];
+	F1score = 2*(sensitivity * pos_pred_val) / (sensitivity + pos_pred_val);
+	confM = [vn fp; fn vp];
 	
 	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
 end;
 			
-function confusionMatrix(v1::AbstractArray{<:Real}, v2::AbstractArray{<:Real}, umbral::Real)
+function confusionMatrix(outputs::AbstractArray{<:Real,1}, targets::AbstractArray{<:Real,1}, umbral::Real)
 
-	vaux1 = collect(v1 .> umbral);
-	vaux2 = collect(v2 .> umbral);
+	vaux1 = collect(Bool, outputs .> umbral);
+	vaux2 = collect(Bool, targets .> umbral);
+
 	confusionMatrix(vaux1, vaux2);
 	
 end;
@@ -545,25 +537,25 @@ end;
 
 # PRACTICA 4.2
 
-numClasses = size(outDS, 2);
-numInstances =size(outDS, 1);
-rep = true;
-outputs = Array{Float32,2}(undef, numInstances, numClasses);
+#numClasses = size(outDS, 2);
+#numInstances =size(outDS, 1);
+#rep = true;
+#outputs = Array{Float32,2}(undef, numInstances, numClasses);
 
 
-while rep
+#while rep
 
-	for numClass in 1:numClasses
-		model,_ = entrenarClassRNA([8,16,8], (inDS, outDS[:, numClass]));
-		global outputs[:, numClass] = model(inDS');
-	end;
+#	for numClass in 1:numClasses
+#		model,_ = entrenarClassRNA([8,16,8], (inDS, outDS[:, numClass]));
+#		global outputs[:, numClass] = model(inDS');
+#	end;
 
-	vmax = maximum(outputs, dims=2);
-	global outputs = (outputs .== vmax);
-	print(sum(unique(outputs, dims=1), dims=1));
-	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
-	print(rep)
-end;
+#	vmax = maximum(outputs, dims=2);
+#	global outputs = (outputs .== vmax);
+#	print(sum(unique(outputs, dims=1), dims=1));
+#	global rep = any(sum(unique(outputs, dims=1), dims=1) .!= 1);
+#	print(rep)
+#end;
 
 
 function confusionMatrix(outputs::AbstractArray{Bool,2},
@@ -660,23 +652,19 @@ end;
 
 #Practica 6
 
-function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inputs::Array{Float64,2}, targets::Array{Any,1}, numFolds::Int64)
+function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inputs::Array{Float64,2}, targets::Array{<:Any,1}, numFolds::Int64)
     @assert(size(inputs,1)==length(targets));
-    classes = unique(targets);
-    if modelType==:ANN
-        targets = oneHotEncoding(targets, classes);
-    end;
     
     crossValidationIndices = crossvalidation(size(inputs,1), numFolds);
     testAccuracies = Array{Float64,1}(undef, numFolds);
     testF1 = Array{Float64,1}(undef, numFolds);
-    
+
     for numFold in 1:numFolds
         if (modelType==:SVM) || (modelType==:DecisionTree) || (modelType==:kNN)
             trainingInputs = inputs[crossValidationIndices.!=numFold,:];
             testInputs = inputs[crossValidationIndices.==numFold,:];
-            trainingTargets = targets[crossValidationIndices.!=numFold];
-            testTargets = targets[crossValidationIndices.==numFold];
+            trainingTargets = targets[crossValidationIndices.!=numFold,:];
+            testTargets = targets[crossValidationIndices.==numFold],:;
         
             # Seleccionamos algoritmo
             if modelType==:SVM
@@ -697,6 +685,12 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
             (acc, _, _, _, _, _, F1, _) = confusionMatrix(testOutputs, testTargets);
         else
             @assert(modelType==:ANN);
+
+            classes = unique(targets);
+		    if !modelHyperparameters["normalized"]
+		    	targets = oneHotEncoding(targets, classes);
+		    end;
+
             trainingInputs = inputs[crossValidationIndices.!=numFold,:];
             testInputs = inputs[crossValidationIndices.==numFold,:];
             trainingTargets = targets[crossValidationIndices.!=numFold,:];
@@ -708,18 +702,22 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
             for numTraining in 1:modelHyperparameters["numExecutions"]
                 if modelHyperparameters["validationRatio"]>0
                     (trainingIndices, validationIndices) = holdOut(size(trainingInputs,1), modelHyperparameters["validationRatio"]*size(trainingInputs,1)/size(inputs,1));
-                    ann, = trainClassANN(modelHyperparameters["topology"], trainingInputs[trainingIndices,:], trainingTargets[trainingIndices,:],
-                        trainingInputs[validationIndices,:], trainingTargets[validationIndices,:], testInputs, testTargets;
-                    maxEpochs=modelHyperparameters["maxEpochs"],
-                    learningRate=modelHyperparameters["learningRate"],
-                    maxEpochsVal=modelHyperparameters["maxEpochsVal"]);
+                    ann = entrenarClassRNA(modelHyperparameters["topology"], (trainingInputs[trainingIndices,:], trainingTargets[trainingIndices,:]),
+                    	(testInputs, testTargets), (trainingInputs[validationIndices,:], trainingTargets[validationIndices,:]),
+                    	modelHyperparameters["maxEpochs"], 0, modelHyperparameters["learningRate"], modelHyperparameters["maxEpochsVal"])[1];
                 else
-                    ann, = trainClassANN(modelHyperparameters["topology"], trainingInputs, trainingTargets, testInputs, testTargets;
-                    maxEpochs=modelHyperparameters["maxEpochs"], learningRate=modelHyperparameters["learningRate"]);
+                    ann = entrenarClassRNA(modelHyperparameters["topology"], (trainingInputs, trainingTargets),
+                    	modelHyperparameters["maxEpochs"], 0, modelHyperparameters["learningRate"])[1];
                 end;
-            
+
                 (testAccuraciesEachRepetition[numTraining], _, _, _, _, _,
-                testF1EachRepetition[numTraining], _) = confusionMatrix(collect(ann(testInputs')'), testTargets);
+                		testF1EachRepetition[numTraining], _) = if !modelHyperparameters["normalized"]
+
+                		confusionMatrix(testTargets, ann(testInputs')');
+	                else
+	                	confusionMatrix(collect(Int, testTargets)[:,1], ann(testInputs')[1,:], modelHyperparameters["umbral"]);
+			    	end;
+                
             end;
 
             acc = mean(testAccuraciesEachRepetition);
@@ -743,3 +741,30 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
     return (mean(testAccuracies), std(testAccuracies), mean(testF1), std(testF1));
 end;
 
+#santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
+#inDS, outDS = randDataset(santaData, notSantaData);
+
+#nInstXset = convert(Int, floor(size(inDS, 1)/3));
+#trainset = inDS[1:nInstXset,:], outDS[1:nInstXset];
+#testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)];
+#validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
+
+#trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
+#plosses = plot(lossestrain)
+#plot!(plosses,lossestest)
+#plot!(plosses,lossesvalid)
+
+#using BSON: @save
+#@save "mymodel.bson" trained_chain
+
+#using BSON: @load
+#@load "mymodel.bson" trained_chain
+
+#test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
+
+#prueba = trained_chain(test)
+
+#curvaROC = map(umbral -> (m = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], umbral)[8]; (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))), 0:0.01:1);
+#pROC = plot(curvaROC)
+
+#accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], 0.5);
