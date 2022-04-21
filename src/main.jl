@@ -117,6 +117,33 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 	return datasets;
 end;
 
+
+function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
+
+	santaDataset2 = Array{Float64, 2}(undef, size(datasets[1],1), 7);
+	notsantaDataset2 = Array{Float64, 2}(undef, size(datasets[2],1), 7);
+
+	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
+	
+	for s in 1:2
+		for i in datasets[s]
+			conj1 = (datasets[s][i,1], datasets[s][i,2], datasets[s][i,3]);
+			conj2 = (datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
+			datasets2[s][i, 1] = mean(conj1);
+			datasets2[s][i, 2] = std(conj2);
+			datasets2[s][i, 3] = datasets[s][i,4];
+			datasets2[s][i, 4] = datasets[s][i,5];
+			datasets2[s][i, 5] = datasets[s][i,6];
+			datasets2[s][i, 6] = mean(conj2);
+			datasets2[s][i, 7] = std(conj2);
+		end;
+	end;
+	
+	return datasets2;
+end;
+			
+
+
 function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
 	inDSLength = size(a1,1)+size(a2,1);
 	perm = randperm(inDSLength);
