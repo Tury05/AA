@@ -85,6 +85,28 @@ function imageToData(fileName::String)
 	return data;
 end;
 
+function imageToData2(filename::String)
+	
+	data = imageToData(filename);
+	
+	data2 = Array{Float64, 1}(undef, 7);
+	
+	conj = (data[1], data[2], data[3]);
+	conj2 = (data[7], data[8], data[9]);
+	
+	data2[1] = mean(conj);
+	data2[2] = std(conj);
+	data2[3] = data[4];
+	data2[4] = data[5];
+	data2[5] = data[6];
+	data2[6] = mean(conj2);
+	data2[7] = std(conj2);
+	
+	return data2;
+end;
+	
+	
+
 function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 
 	santaImages,_ = loadFolderImages(santaFolder);
@@ -120,13 +142,16 @@ end;
 
 function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 
-	santaDataset2 = Array{Float64, 2}(undef, size(datasets[1],1), 7);
-	notsantaDataset2 = Array{Float64, 2}(undef, size(datasets[2],1), 7);
+	
 
 	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
 	
+	santaDataset2 = Array{Float64, 2}(undef, size(datasets[1],1), 7);
+	notsantaDataset2 = Array{Float64, 2}(undef, size(datasets[2],1), 7);
+	datasets2 = (santaDataset2, notsantaDataset2);
 	for s in 1:2
-		for i in datasets[s]
+		i = 1
+		for img in datasets[s]
 			conj1 = (datasets[s][i,1], datasets[s][i,2], datasets[s][i,3]);
 			conj2 = (datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
 			datasets2[s][i, 1] = mean(conj1);
@@ -136,6 +161,8 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 			datasets2[s][i, 5] = datasets[s][i,6];
 			datasets2[s][i, 6] = mean(conj2);
 			datasets2[s][i, 7] = std(conj2);
+			
+			i=+ 1;
 		end;
 	end;
 	
@@ -147,7 +174,7 @@ end;
 function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
 	inDSLength = size(a1,1)+size(a2,1);
 	perm = randperm(inDSLength);
-	inDS = Array{Float64, 2}(undef, inDSLength, 9);
+	inDS = Array{Float64, 2}(undef, inDSLength, 7);
 	outDS = Array{Bool}(undef, inDSLength);
 	k = 1;
 
@@ -776,7 +803,7 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
 end;
 
 """
-santaData, notSantaData = santaImagesToDatasets("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
+santaData, notSantaData = santaImagesToDatasets2("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
 inDS, outDS = randDataset(santaData, notSantaData);
 
 nInstXset = convert(Int, floor(size(inDS, 1)/3));
@@ -795,7 +822,7 @@ using BSON: @save
 using BSON: @load
 @load "mymodel.bson" trained_chain
 
-test = imageToData("BBDD/papa_noel/santa/0.Santa.jpg");
+test = imageToData2("BBDD/papa_noel/santa/0.Santa.jpg");
 
 prueba = trained_chain(test)
 
