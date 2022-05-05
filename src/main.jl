@@ -105,8 +105,21 @@ function imageToData2(filename::String)
 	return data2;
 end;
 	
+function imageToData3(filename::String)
+	data = imageToData(filename)
 	
-
+	data3 = Array{Float64, 1}(undef, 5);
+	
+	conj = (data[1], data[2], data[3], data[7], data[8], data[9]);
+	
+	data3[1] = mean(conj);
+	data3[2] = std(conj);
+	data3[3] = data[4];
+	data3[4] = data[5];
+	data3[5] = data[6];
+	
+	return data3;
+end;
 function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 
 	santaImages,_ = loadFolderImages(santaFolder);
@@ -140,6 +153,113 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 end;
 
 
+
+
+
+
+function eyeImagesToDatasets(colorMatrix::AbstractArray{Float64,2})
+
+	fil = convert(Int,floor(size(colorMatrix,1)/3));
+	col = convert(Int,floor(size(colorMatrix,2)/7));
+	dataset = Array{Float64, 1}(undef, 3);
+
+	for j in 1:3
+		
+		dataset[j] = mean(colorMatrix[fil:(fil*2),(col*(j*2-1)):(col*(j*2))]);
+	end;
+
+	return dataset;
+end;
+
+function eyeImagesToDatasets(eyeFolder::String, notEyeFolder::String)
+
+	_, eyeImages = loadFolderImages(eyeFolder);
+	_, notEyeImages = loadFolderImages(notEyeFolder);
+	images = (eyeImages, notEyeImages);
+
+	eyeDataset = Array{Float64, 2}(undef, size(eyeImages,1), 3);
+	notEyeDataset = Array{Float64, 2}(undef, size(notEyeImages,1), 3);
+	datasets = (eyeDataset, notEyeDataset);
+
+	for s in 1:2
+		i = 1
+		for colorMatrix in images[s]
+			datasets[s][i,:] = eyeImagesToDatasets(colorMatrix);
+
+			i += 1;
+		end;
+	end;
+
+	return datasets;
+end;
+
+
+function testRNAfaceImage(faceImage::String, rna::Chain{Tuple{Dense{typeof(σ),Array{Float32,2},Array{Float32,1}},Dense{typeof(σ),Array{Float32,2},Array{Float32,1}},Dense{typeof(σ),Array{Float32,2},Array{Float32,1}}}},
+	uRNA::Real, uDist::Real, uErrors::Int)
+
+	_,image = loadImage(faceImage);
+
+	fil = convert(Int,round(size(image,1)/60));
+	col = convert(Int,round(size(image,2)/64));
+
+	ojoIXs = [];
+	ojoIYs = [];
+	maxDist = 19.42*uDist;
+	nErrors = 0;
+
+	for y in 20:36
+		for x in 16:27
+			patron = eyeImagesToDatasets(image[(y*fil):((y+3)*fil),(x*col):((x+4)*col)]);
+			if (rna(patron)[1] > uRNA) & (rna(reverse(patron, dims=1))[1] > uRNA)
+				if !isempty(ojoIYs)
+					if sqrt((mean(ojoIYs)-y)^2 + (mean(ojoIXs)-x)^2) < maxDist
+						push!(ojoIYs, y);
+						push!(ojoIXs, x);
+					else
+						if nErrors > uErrors
+							return false;
+						else
+							nErrors+=1;
+						end;
+					end;
+				else
+					push!(ojoIYs, y);
+					push!(ojoIXs, x);
+				end;
+			end;
+		end;
+	end;
+
+	ojoDXs = [];
+	ojoDYs = [];
+	nErrors = 0;
+
+	for y in 20:36
+		for x in 16:27
+			patron = eyeImagesToDatasets(image[(y*fil):((y+3)*fil),(x*col):((x+4)*col)]);
+			if (rna(patron)[1] > uRNA) & (rna(reverse(patron, dims=1))[1] > uRNA)
+				if !isempty(ojoDYs)
+					if sqrt((mean(ojoDYs)-y)^2 + (mean(ojoDXs)-x)^2) < maxDist
+						push!(ojoDYs, y);
+						push!(ojoDXs, x);
+					else
+						if nErrors > uErrors
+							return false;
+						else
+							nErrors+=1;
+						end;
+					end;
+				else
+					push!(ojoDYs, y);
+					push!(ojoDXs, x);
+				end;
+			end;
+		end;
+	end;
+
+	return !isempty(ojoIYs) & !isempty(ojoDYs);
+end;
+
 function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 
 	
@@ -169,12 +289,41 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 	return datasets2;
 end;
 			
+function santaImagesToDatasets3(santaFolder::String, notSantaFolder::String)
+
+	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
+	
+	santaDataset3 = Array{Float64, 2}(undef, size(datasets[1], 1), 5);
+	notsantaDataset3 = Array{Float64, 2}(undef, size(datasets[2], 1), 5);
+	datasets3 = (santaDataset3, notsantaDataset3);
+	
+	for s in 1:2
+		
+		for i in 1:size(datasets[s],1)
+			conj = (datasets[s][i,1], datasets[s][i,2],  datasets[s][i,3], datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
+			
+			datasets3[s][i,1] = mean(conj);
+			datasets3[s][i,2] = std(conj);
+			datasets3[s][i, 3] = datasets[s][i,4];
+			datasets3[s][i, 4] = datasets[s][i,5];
+			datasets3[s][i, 5] = datasets[s][i,6];
+			
+			i=+1;
+		end;
+	end;
+	
+	return datasets3;
+end;
 
 
 function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
-	inDSLength = size(a1,1)+size(a2,1);
+	
+	@assert(size(a1) == size(a2)); 
+	inDSLength = size(a1,1)*2;
 	perm = randperm(inDSLength);
-	inDS = Array{Float64, 2}(undef, inDSLength, 7);
+
+	inDS = Array{Float64, 2}(undef, inDSLength, size(a1,2));
+
 	outDS = Array{Bool}(undef, inDSLength);
 	k = 1;
 
@@ -403,7 +552,7 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 	e = 0;
 	l = Inf;
 	losses = [];
-	
+
 	loss(x,y) = (size(y,1) == 1) ? Losses.binarycrossentropy(ann(x),y) : Losses.crossentropy(ann(x),y);
 	
 	while e < maxEpochs && l > minLoss
@@ -480,9 +629,11 @@ function entrenarClassRNA(topology::AbstractArray{<:Int,1},
 
 	e = ev = 0;
 	ltrain = ltest = lvalid = lprev = Inf;
-	lossestrain = lossestest = lossesvalid = [];
+	lossestrain = [];
+	lossestest = [];
+	lossesvalid = [];
 	bestRNA = deepcopy(ann);
-	
+
 	loss(x,y) = (size(y,1) == 1) ? Losses.binarycrossentropy(ann(x),y) : Losses.crossentropy(ann(x),y);
 
 	while e < maxEpochs && ltrain > minLoss && ev < maxEpochsVal
@@ -571,16 +722,17 @@ function confusionMatrix(outputs::AbstractArray{Bool,1}, targets::AbstractArray{
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
 	
-	accuracy = (vn+vp)/(vn+vp+fn+fp);
-	error_rate = (fn+fp)/(vn+vp+fn+fp);
-	sensitivity = vp/(fn+vp);
-	specificity = vn/(vn+fp);
-	pos_pred_val= vp/(vp+fp);
-	neg_pred_val= vn/(vn+fn);
-	F1score = 2*(sensitivity * pos_pred_val) / (sensitivity + pos_pred_val);
+	accuracy0 = if vn+vp+fn+fp != 0 (vn+vp)/(vn+vp+fn+fp) else 0 end;
+	error_rate0 = if vn+vp+fn+fp != 0 (fn+fp)/(vn+vp+fn+fp) else 0 end;
+	sensitivity0 = if fn+vp != 0 vp/(fn+vp) else 0 end;
+	specificity0 = if vn+fp != 0 vn/(vn+fp) else 0 end;
+	pos_pred_val0 = if vp+fp != 0 vp/(vp+fp) else 0 end;
+	neg_pred_val0 = if vn+fn != 0 vn/(vn+fn) else 0 end;
+	F1score0 = if sensitivity0 + pos_pred_val0 != 0
+		2*(sensitivity0 * pos_pred_val0) / (sensitivity0 + pos_pred_val0) else 0 end;
 	confM = [vn fp; fn vp];
 	
-	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
+	return (accuracy0, error_rate0, sensitivity0, specificity0, pos_pred_val0, neg_pred_val0, F1score0, confM)
 end;
 			
 function confusionMatrix(outputs::AbstractArray{<:Real,1}, targets::AbstractArray{<:Real,1}, umbral::Real)
@@ -712,7 +864,7 @@ end;
 
 function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inputs::Array{Float64,2}, targets::Array{<:Any,1}, numFolds::Int64)
     @assert(size(inputs,1)==length(targets));
-    Random.seed!(0);
+    Random.seed!(10);
     
     crossValidationIndices = crossvalidation(size(inputs,1), numFolds);
     testAccuracies = Array{Float64,1}(undef, numFolds);
@@ -772,12 +924,12 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
                 end;
 
                 (testAccuraciesEachRepetition[numTraining], _, _, _, _, _,
-                		testF1EachRepetition[numTraining], _) = if !modelHyperparameters["normalized"]
-
-                		confusionMatrix(testTargets, ann(testInputs')');
-	                else
-	                	confusionMatrix(collect(Int, testTargets)[:,1], ann(testInputs')[1,:], modelHyperparameters["umbral"]);
-			    	end;
+                	testF1EachRepetition[numTraining], _) =
+	                	if !modelHyperparameters["normalized"]
+	                		confusionMatrix(testTargets, ann(testInputs')');
+		                else
+		                	confusionMatrix(collect(Int, testTargets)[:,1], ann(testInputs')[1,:], modelHyperparameters["umbral"]);
+				    	end;
                 
             end;
 
@@ -803,7 +955,7 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
 end;
 
 """
-santaData, notSantaData = santaImagesToDatasets2("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
+santaData, notSantaData = santaImagesToDatasets3("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
 inDS, outDS = randDataset(santaData, notSantaData);
 
 nInstXset = convert(Int, floor(size(inDS, 1)/3));
@@ -811,25 +963,19 @@ trainset = inDS[1:nInstXset,:], outDS[1:nInstXset];
 testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)];
 validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
 
-trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
-plosses = plot(lossestrain)
-plot!(plosses,lossestest)
-plot!(plosses,lossesvalid)
+santa_trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([8,4], trainset, testset, validset, 200, 0, 0.01);
+plosses = plot(lossestrain, label="Entrenamiento")
+plot!(plosses,lossestest, label="Test")
+plot!(plosses,lossesvalid, label="Validación")
 
-using BSON: @save
-@save "mymodel.bson" trained_chain
+test = imageToData3("BBDD/papa_noel/santa/0.Santa.jpg");
 
-using BSON: @load
-@load "mymodel.bson" trained_chain
+prueba = santa_trained_chain(test)
 
-test = imageToData2("BBDD/papa_noel/santa/0.Santa.jpg");
-
-prueba = trained_chain(test)
-
-curvaROC = map(umbral -> (m = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], umbral)[8]; (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))), 0:0.01:1);
+curvaROC = map(umbral -> (m = confusionMatrix(convert(Array{Int}, outDS), santa_trained_chain(inDS')[1,:], umbral)[8]; (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))), 0:0.01:1);
 pROC = plot(curvaROC)
 
-accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], 0.5);
+accuracy0, error_rate0, sensitivity0, specificity0, pos_pred_val0, neg_pred_val0, F1score0, confM0 = confusionMatrix(convert(Array{Int}, outDS), santa_trained_chain(inDS')[1,:], 0.5);
 
 
 parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
@@ -847,4 +993,219 @@ modelCrossValidation(:kNN, parameters, inDS, outDS, 10);
 
 parameters = Dict("kernel" => "rbf", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10);
-"""
+
+eyeData, notEyeData = eyeImagesToDatasets("BBDD/papa_noel/eye", "BBDD/papa_noel/not-a-eye");
+inDS, outDS = randDataset(eyeData, notEyeData);
+
+nInstXset = convert(Int, floor(size(inDS, 1)/3));
+trainset = inDS[1:nInstXset,:], outDS[1:nInstXset];
+testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)];
+validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
+
+trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
+plosses = plot(lossestrain, label="Entrenamiento")
+plot!(plosses,lossestest, label="Test")
+plot!(plosses,lossesvalid, label="Validación")
+
+test = eyeImagesToDatasets(loadImage("BBDD/papa_noel/eye/10.Santa.jpg")[2])
+
+prueba = trained_chain(eyeImagesToDatasets(loadImage("BBDD/papa_noel/eye/10.Santa.jpg")[2]))
+
+curvaROC = map(umbral -> (m = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], umbral)[8]; (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))), 0:0.01:1);
+pROC = plot(curvaROC)
+
+
+accuracy0, error_rate0, sensitivity0, specificity0, pos_pred_val0, neg_pred_val0, F1score0, confM0 = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], 0.5);
+
+(0.80859375, 0.19140625, 0.7578125, 0.859375, 0.8434782608695652, 0.7801418439716312, 0.7983539094650205, [110 18; 31 97])
+
+
+parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
+	"topology"=>[16,8], "maxEpochs"=>100, "learningRate"=>0.01,
+	"minLoss"=>0, "maxEpochsVal"=>10, "normalized"=>true, "umbral"=>0.5);
+modelCrossValidation(:ANN, parameters, inDS, outDS, 10)
+"
+ANN: Average test accuracy on a 10-fold
+            crossvalidation: 73.75384615384617, with a standard deviation of 6.738477149417969
+ANN: Average test F1 on a 10-fold
+            crossvalidation: 68.9157975583505, with a standard deviation of 14.214183319197707
+"
+parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
+	"topology"=>[32,16], "maxEpochs"=>200, "learningRate"=>0.01,
+	"minLoss"=>0, "maxEpochsVal"=>10, "normalized"=>true, "umbral"=>0.5);
+modelCrossValidation(:ANN, parameters, inDS, outDS, 10)
+"
+ANN: Average test accuracy on a 10-fold
+            crossvalidation: 62.189230769230775, with a standard deviation of 6.329040588161913
+ANN: Average test F1 on a 10-fold
+            crossvalidation: 51.77736505527465, with a standard deviation of 12.705481976929653
+"
+parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
+	"topology"=>[8,4], "maxEpochs"=>100, "learningRate"=>0.02,
+	"minLoss"=>0, "maxEpochsVal"=>10, "normalized"=>true, "umbral"=>0.5);
+modelCrossValidation(:ANN, parameters, inDS, outDS, 10)
+"
+ANN: Average test accuracy on a 10-fold
+            crossvalidation: 76.41384615384614, with a standard deviation of 4.04211523771939
+ANN: Average test F1 on a 10-fold
+            crossvalidation: 73.4873692173134, with a standard deviation of 7.898378881297445
+"
+
+parameters = Dict();
+parameters["maxDepth"] = 10;
+modelCrossValidation(:DecisionTree, parameters, inDS, outDS, 10)
+"
+DecisionTree: Average test accuracy on a 10-fold
+            crossvalidation: 91.46153846153847, with a standard deviation of 5.065903607026791
+DecisionTree: Average test F1 on a 10-fold
+            crossvalidation: 91.14708028805391, with a standard deviation of 5.934216903245276
+"
+parameters = Dict();
+parameters["maxDepth"] = 30;
+modelCrossValidation(:DecisionTree, parameters, inDS, outDS, 10)
+"
+DecisionTree: Average test accuracy on a 10-fold
+            crossvalidation: 91.46153846153847, with a standard deviation of 5.065903607026791
+DecisionTree: Average test F1 on a 10-fold
+            crossvalidation: 91.14708028805391, with a standard deviation of 5.934216903245276
+"
+parameters = Dict();
+parameters["maxDepth"] = 50;
+modelCrossValidation(:DecisionTree, parameters, inDS, outDS, 10)
+"
+DecisionTree: Average test accuracy on a 10-fold
+            crossvalidation: 91.46153846153847, with a standard deviation of 5.065903607026791
+DecisionTree: Average test F1 on a 10-fold
+            crossvalidation: 91.14708028805391, with a standard deviation of 5.934216903245276
+"
+
+parameters = Dict();
+parameters["numNeighbors"] = 8;
+modelCrossValidation(:kNN, parameters, inDS, outDS, 10)
+"
+kNN: Average test accuracy on a 10-fold
+            crossvalidation: 90.69230769230771, with a standard deviation of 6.639887042281201
+kNN: Average test F1 on a 10-fold
+            crossvalidation: 88.98761946588036, with a standard deviation of 10.128523285486033
+"
+parameters = Dict();
+parameters["numNeighbors"] = 16;
+modelCrossValidation(:kNN, parameters, inDS, outDS, 10)
+"
+kNN: Average test accuracy on a 10-fold
+            crossvalidation: 91.41538461538461, with a standard deviation of 4.848690151651193
+kNN: Average test F1 on a 10-fold
+            crossvalidation: 90.39742832546432, with a standard deviation of 6.417393529932489
+"
+parameters = Dict();
+parameters["numNeighbors"] = 32;
+modelCrossValidation(:kNN, parameters, inDS, outDS, 10)
+"
+kNN: Average test accuracy on a 10-fold
+            crossvalidation: 89.47692307692307, with a standard deviation of 5.183395326785424
+kNN: Average test F1 on a 10-fold
+            crossvalidation: 88.89761498802422, with a standard deviation of 5.42783114938345
+"
+
+parameters = Dict("kernel" => "rbf", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
+modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
+"
+SVM: Average test accuracy on a 10-fold
+            crossvalidation: 88.6923076923077, with a standard deviation of 5.590096436758055
+SVM: Average test F1 on a 10-fold
+            crossvalidation: 88.15763680763682, with a standard deviation of 5.874826298118249
+"
+parameters = Dict("kernel" => "linear", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
+modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
+"
+SVM: Average test accuracy on a 10-fold
+            crossvalidation: 86.72307692307693, with a standard deviation of 5.564067115567099
+SVM: Average test F1 on a 10-fold
+            crossvalidation: 85.96334364560171, with a standard deviation of 5.810534122194345
+"
+parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
+modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
+"
+SVM: Average test accuracy on a 10-fold
+            crossvalidation: 87.92307692307692, with a standard deviation of 4.9135859368399535
+SVM: Average test F1 on a 10-fold
+            crossvalidation: 87.61325814145287, with a standard deviation of 5.481743256015876
+"
+
+isImageExtension(fileName::String) = any(uppercase(fileName[end-3:end]) .== [".JPG", ".PNG"]);
+
+folders = "BBDD/papa_noel/human", "BBDD/papa_noel/not-a-human";
+pROC = plot()
+
+for uErrors in 5:5
+	println(uErrors);
+	for uRNA in 0.01:0.098:0.99
+		println(uRNA);
+
+		curvaROC = convert(Array{Tuple{Float64,Float64},1}, []);
+		for uDist in 0:0.1:1
+			outputs = [];
+			targets = [];
+			
+			println(uDist);
+			for i in 1:2
+				for fileName in readdir(folders[i])
+					if isImageExtension(fileName)
+						push!(outputs, testRNAfaceImage(string(folders[i], "/", fileName),
+							trained_chain, uRNA, uDist, 5) & (santa_trained_chain(imageToData(string(folders[i], "/", fileName)))[1] > 0.5));
+						push!(targets, i==1);
+					end;
+				end;
+			end;
+
+			m = confusionMatrix(convert(Array{Bool,1}, outputs), convert(Array{Bool,1}, targets))[8];
+
+			println(m)
+
+			push!(curvaROC, (m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2])));
+		end;
+		plot!(pROC, curvaROC, label=string("uRNA: ",uRNA,", uErrors: ",uErrors))
+	end
+end
+
+pROC
+
+
+folders = "BBDD/papa_noel/human", "BBDD/papa_noel/not-a-human";
+outputs = [];
+targets = [];
+
+for i in 1:2
+   for fileName in readdir(folders[i])
+       if isImageExtension(fileName)
+               push!(outputs, testRNAfaceImage(string(folders[i], "/", fileName),
+               	trained_chain, 0.8, 0.3, 5) & (santa_trained_chain(imageToData(string(folders[i], "/", fileName)))[1] > 0.5));
+               push!(targets, i==1);
+       end;
+   end;
+end;
+
+confusionMatrix(convert(Array{Bool,1}, outputs), convert(Array{Bool,1}, targets))
+
+(0.8666666666666667, 0.13333333333333333, 0.9230769230769231, 0.8235294117647058, 0.8, 0.9333333333333333, 0.8571428571428571, [28 6; 2 24])
+
+folders = "BBDD/papa_noel/human", "BBDD/papa_noel/not-a-human";
+
+outputs = [];
+targets = [];
+
+for i in 1:2
+	for fileName in readdir(folders[i])
+		if isImageExtension(fileName)
+			push!(outputs, santa_trained_chain(imageToData(string(folders[i], "/", fileName)))[1] > 0.5);
+			push!(targets, i==1);
+		end;
+	end;
+end;
+
+confusionMatrix(convert(Array{Bool,1}, outputs), convert(Array{Bool,1}, targets))
+
+(0.5, 0.5, 0.5, 0.5, 0.9333333333333333, 0.06666666666666667, 0.6511627906976745, [2 2; 28 28])
+
+
+""";
