@@ -270,8 +270,8 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 	notsantaDataset2 = Array{Float64, 2}(undef, size(datasets[2],1), 7);
 	datasets2 = (santaDataset2, notsantaDataset2);
 	for s in 1:2
-		i = 1
-		for img in datasets[s]
+		
+		for i in 1:size(datasets[s],1)
 			conj1 = (datasets[s][i,1], datasets[s][i,2], datasets[s][i,3]);
 			conj2 = (datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
 			datasets2[s][i, 1] = mean(conj1);
@@ -282,7 +282,7 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 			datasets2[s][i, 6] = mean(conj2);
 			datasets2[s][i, 7] = std(conj2);
 			
-			i=+ 1;
+			
 		end;
 	end;
 	
@@ -308,7 +308,7 @@ function santaImagesToDatasets3(santaFolder::String, notSantaFolder::String)
 			datasets3[s][i, 4] = datasets[s][i,5];
 			datasets3[s][i, 5] = datasets[s][i,6];
 			
-			i=+1;
+			
 		end;
 	end;
 	
@@ -955,7 +955,7 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
 end;
 
 """
-santaData, notSantaData = santaImagesToDatasets3("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
+santaData, notSantaData = santaImagesToDatasets2("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
 inDS, outDS = randDataset(santaData, notSantaData);
 
 nInstXset = convert(Int, floor(size(inDS, 1)/3));
@@ -968,7 +968,7 @@ plosses = plot(lossestrain, label="Entrenamiento")
 plot!(plosses,lossestest, label="Test")
 plot!(plosses,lossesvalid, label="Validación")
 
-test = imageToData3("BBDD/papa_noel/santa/0.Santa.jpg");
+test = imageToData2("BBDD/papa_noel/santa/1.Santa.jpg");
 
 prueba = santa_trained_chain(test)
 
@@ -979,19 +979,19 @@ accuracy0, error_rate0, sensitivity0, specificity0, pos_pred_val0, neg_pred_val0
 
 
 parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
-	"topology"=>[16,8], "maxEpochs"=>100, "learningRate"=>0.01,
+	"topology"=>[8,4], "maxEpochs"=>100, "learningRate"=>0.02,
 	"minLoss"=>0, "maxEpochsVal"=>10, "normalized"=>true, "umbral"=>0.5);
 modelCrossValidation(:ANN, parameters, inDS, outDS, 10);
 
 parameters = Dict();
-parameters["maxDepth"] = 50;
+parameters["maxDepth"] = 5;
 modelCrossValidation(:DecisionTree, parameters, inDS, outDS, 10);
 
 parameters = Dict();
-parameters["numNeighbors"] = 5;
+parameters["numNeighbors"] = 3;
 modelCrossValidation(:kNN, parameters, inDS, outDS, 10);
 
-parameters = Dict("kernel" => "rbf", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
+parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10);
 
 eyeData, notEyeData = eyeImagesToDatasets("BBDD/papa_noel/eye", "BBDD/papa_noel/not-a-eye");
