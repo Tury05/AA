@@ -27,7 +27,7 @@ plot!(plosses,lossestest, label="Test")
 plot!(plosses,lossesvalid, label="Validación")
 
 # Probar un caso
-test = imageToData3("BBDD/papa_noel/santa/0.Santa.jpg");
+test = imageToData3("BBDD/papa_noel/santa/1.Santa.jpg");
 prueba = trained_chain(test);
 
 # Curva ROC
@@ -157,8 +157,8 @@ modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => "scale", "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 
-parameters = Dict("kernel" => "sigmoid", "kernelGamma" => 2, "C" => 1);
+parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => "auto", "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 
-parameters = Dict("kernel" => "precomputed", "C" => 1);
+parameters = Dict("kernel" => "sigmoid", "kernelGamma" => 2, "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10)

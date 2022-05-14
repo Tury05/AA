@@ -154,10 +154,10 @@ modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => "scale", "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 
-parameters = Dict("kernel" => "sigmoid", "kernelGamma" => 2, "C" => 1);
+parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => "auto", "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 
-parameters = Dict("kernel" => "precomputed", "C" => 1);
+parameters = Dict("kernel" => "sigmoid", "kernelGamma" => 2, "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 
 

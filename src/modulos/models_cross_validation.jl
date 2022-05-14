@@ -77,12 +77,114 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
         
             # Seleccionamos algoritmo
             if modelType==:SVM
-                model = SVC(
-                    kernel = modelHyperparameters["kernel"],
-                    degree = modelHyperparameters["kernelDegree"],
-                    gamma = modelHyperparameters["kernelGamma"],
-                    C = modelHyperparameters["C"]
-                );
+                model = 
+                    if haskey(modelHyperparameters, "kernel")
+                        if haskey(modelHyperparameters, "kernelDegree")
+                            if haskey(modelHyperparameters, "kernelGamma")
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        degree = modelHyperparameters["kernelDegree"],
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        degree = modelHyperparameters["kernelDegree"],
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                    )
+                                end
+                            else
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        degree = modelHyperparameters["kernelDegree"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        degree = modelHyperparameters["kernelDegree"],
+                                    )
+                                end
+                            end
+                        else
+                            if haskey(modelHyperparameters, "kernelGamma")
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                    )
+                                end
+                            else
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC(
+                                        kernel = modelHyperparameters["kernel"],
+                                    )
+                                end
+                            end
+                        end
+                    else
+                        if haskey(modelHyperparameters, "kernelDegree")
+                            if haskey(modelHyperparameters, "kernelGamma")
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        degree = modelHyperparameters["kernelDegree"],
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC(
+                                        degree = modelHyperparameters["kernelDegree"],
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                    )
+                                end
+                            else
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        degree = modelHyperparameters["kernelDegree"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC(
+                                        degree = modelHyperparameters["kernelDegree"],
+                                    )
+                                end
+                            end
+                        else
+                            if haskey(modelHyperparameters, "kernelGamma")
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        gamma = modelHyperparameters["kernelGamma"],
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+
+                                end
+                            else
+                                if haskey(modelHyperparameters, "C")
+                                    SVC(
+                                        C = modelHyperparameters["C"]
+                                    )
+                                else
+                                    SVC()
+                                end
+                            end
+                        end
+                    end;
+
             elseif modelType==:DecisionTree
                 model = DecisionTreeClassifier(max_depth=modelHyperparameters["maxDepth"], random_state=1);
             elseif modelType==:kNN

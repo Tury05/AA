@@ -146,8 +146,6 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 	return datasets;
 end;
 
-
-
 function eyeImagesToDatasets(colorMatrix::AbstractArray{Float64,2})
 
 	fil = convert(Int,floor(size(colorMatrix,1)/3));

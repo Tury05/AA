@@ -36,6 +36,7 @@ function accuracy(target::AbstractArray{Bool,2},
         accuracy(target, classifiedOut)
     end
 end
+
 function confusionMatrix(outputs::AbstractArray{Bool,1}, targets::AbstractArray{Bool,1})
 
 	vaux = outputs .== targets;
@@ -49,16 +50,17 @@ function confusionMatrix(outputs::AbstractArray{Bool,1}, targets::AbstractArray{
 	fp = length(pos) - vp;
 	fn = length(vaux) - (vp+vn+fp);
 	
-	accuracy = (vn+vp)/(vn+vp+fn+fp);
-	error_rate = (fn+fp)/(vn+vp+fn+fp);
-	sensitivity = vp/(fn+vp);
-	specificity = vn/(vn+fp);
-	pos_pred_val= vp/(vp+fp);
-	neg_pred_val= vn/(vn+fn);
-	F1score = 2*(sensitivity * pos_pred_val) / (sensitivity + pos_pred_val);
+	accuracy0 = if vn+vp+fn+fp != 0 (vn+vp)/(vn+vp+fn+fp) else 0 end;
+	error_rate0 = if vn+vp+fn+fp != 0 (fn+fp)/(vn+vp+fn+fp) else 0 end;
+	sensitivity0 = if fn+vp != 0 vp/(fn+vp) else 0 end;
+	specificity0 = if vn+fp != 0 vn/(vn+fp) else 0 end;
+	pos_pred_val0 = if vp+fp != 0 vp/(vp+fp) else 0 end;
+	neg_pred_val0 = if vn+fn != 0 vn/(vn+fn) else 0 end;
+	F1score0 = if sensitivity0 + pos_pred_val0 != 0
+		2*(sensitivity0 * pos_pred_val0) / (sensitivity0 + pos_pred_val0) else 0 end;
 	confM = [vn fp; fn vp];
 	
-	return (accuracy, error_rate, sensitivity, specificity, pos_pred_val, neg_pred_val, F1score, confM)
+	return (accuracy0, error_rate0, sensitivity0, specificity0, pos_pred_val0, neg_pred_val0, F1score0, confM)
 end;
 			
 function confusionMatrix(outputs::AbstractArray{<:Real,1}, targets::AbstractArray{<:Real,1}, umbral::Real)
