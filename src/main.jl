@@ -105,8 +105,21 @@ function imageToData2(filename::String)
 	return data2;
 end;
 	
+function imageToData3(filename::String)
+	data = imageToData(filename)
 	
-
+	data3 = Array{Float64, 1}(undef, 5);
+	
+	conj = (data[1], data[2], data[3], data[7], data[8], data[9]);
+	
+	data3[1] = mean(conj);
+	data3[2] = std(conj);
+	data3[3] = data[4];
+	data3[4] = data[5];
+	data3[5] = data[6];
+	
+	return data3;
+end;
 function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 
 	santaImages,_ = loadFolderImages(santaFolder);
@@ -138,6 +151,9 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 
 	return datasets;
 end;
+
+
+
 
 
 
@@ -254,8 +270,8 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 	notsantaDataset2 = Array{Float64, 2}(undef, size(datasets[2],1), 7);
 	datasets2 = (santaDataset2, notsantaDataset2);
 	for s in 1:2
-		i = 1
-		for img in datasets[s]
+		
+		for i in 1:size(datasets[s],1)
 			conj1 = (datasets[s][i,1], datasets[s][i,2], datasets[s][i,3]);
 			conj2 = (datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
 			datasets2[s][i, 1] = mean(conj1);
@@ -266,11 +282,37 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 			datasets2[s][i, 6] = mean(conj2);
 			datasets2[s][i, 7] = std(conj2);
 			
-			i=+ 1;
+			
 		end;
 	end;
 	
 	return datasets2;
+end;
+			
+function santaImagesToDatasets3(santaFolder::String, notSantaFolder::String)
+
+	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
+	
+	santaDataset3 = Array{Float64, 2}(undef, size(datasets[1], 1), 5);
+	notsantaDataset3 = Array{Float64, 2}(undef, size(datasets[2], 1), 5);
+	datasets3 = (santaDataset3, notsantaDataset3);
+	
+	for s in 1:2
+		
+		for i in 1:size(datasets[s],1)
+			conj = (datasets[s][i,1], datasets[s][i,2],  datasets[s][i,3], datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
+			
+			datasets3[s][i,1] = mean(conj);
+			datasets3[s][i,2] = std(conj);
+			datasets3[s][i, 3] = datasets[s][i,4];
+			datasets3[s][i, 4] = datasets[s][i,5];
+			datasets3[s][i, 5] = datasets[s][i,6];
+			
+			
+		end;
+	end;
+	
+	return datasets3;
 end;
 
 
@@ -912,7 +954,7 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
     return (mean(testAccuracies), std(testAccuracies), mean(testF1), std(testF1));
 end;
 
-
+"""
 santaData, notSantaData = santaImagesToDatasets2("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
 inDS, outDS = randDataset(santaData, notSantaData);
 
@@ -921,18 +963,12 @@ trainset = inDS[1:nInstXset,:], outDS[1:nInstXset];
 testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)];
 validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
 
-santa_trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
+santa_trained_chain, lossestrain, lossestest, lossesvalid = entrenarClassRNA([8,4], trainset, testset, validset, 200, 0, 0.01);
 plosses = plot(lossestrain, label="Entrenamiento")
 plot!(plosses,lossestest, label="Test")
 plot!(plosses,lossesvalid, label="Validación")
 
-using BSON: @save
-@save "mymodel.bson" trained_chain
-
-using BSON: @load
-@load "mymodel.bson" trained_chain
-
-test = imageToData2("BBDD/papa_noel/santa/0.Santa.jpg");
+test = imageToData2("BBDD/papa_noel/santa/1.Santa.jpg");
 
 prueba = santa_trained_chain(test)
 
@@ -943,19 +979,19 @@ accuracy0, error_rate0, sensitivity0, specificity0, pos_pred_val0, neg_pred_val0
 
 
 parameters = Dict("numExecutions"=>10, "validationRatio"=>0.25,
-	"topology"=>[16,8], "maxEpochs"=>100, "learningRate"=>0.01,
+	"topology"=>[8,4], "maxEpochs"=>100, "learningRate"=>0.02,
 	"minLoss"=>0, "maxEpochsVal"=>10, "normalized"=>true, "umbral"=>0.5);
 modelCrossValidation(:ANN, parameters, inDS, outDS, 10);
 
 parameters = Dict();
-parameters["maxDepth"] = 50;
+parameters["maxDepth"] = 5;
 modelCrossValidation(:DecisionTree, parameters, inDS, outDS, 10);
 
 parameters = Dict();
-parameters["numNeighbors"] = 5;
+parameters["numNeighbors"] = 3;
 modelCrossValidation(:kNN, parameters, inDS, outDS, 10);
 
-parameters = Dict("kernel" => "rbf", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
+parameters = Dict("kernel" => "poly", "kernelDegree" => 3, "kernelGamma" => 2, "C" => 1);
 modelCrossValidation(:SVM, parameters, inDS, outDS, 10);
 
 eyeData, notEyeData = eyeImagesToDatasets("BBDD/papa_noel/eye", "BBDD/papa_noel/not-a-eye");
