@@ -1,6 +1,7 @@
-include("rna.jl")
-INCLUDE("bondad.jl")
+include("rna.jl");
+include("bondad.jl");
 
+using Random;
 using ScikitLearn;
 
 @sk_import svm: SVC
@@ -61,7 +62,7 @@ end;
 
 function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inputs::Array{Float64,2}, targets::Array{<:Any,1}, numFolds::Int64)
     @assert(size(inputs,1)==length(targets));
-    Random.seed!(0);
+    Random.seed!(10);
     
     crossValidationIndices = crossvalidation(size(inputs,1), numFolds);
     testAccuracies = Array{Float64,1}(undef, numFolds);
@@ -97,9 +98,9 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
             @assert(modelType==:ANN);
 
             classes = unique(targets);
-		    if !modelHyperparameters["normalized"]
-		    	targets = oneHotEncoding(targets, classes);
-		    end;
+            if !modelHyperparameters["normalized"]
+                targets = oneHotEncoding(targets, classes);
+            end;
 
             trainingInputs = inputs[crossValidationIndices.!=numFold,:];
             testInputs = inputs[crossValidationIndices.==numFold,:];
@@ -113,20 +114,20 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
                 if modelHyperparameters["validationRatio"]>0
                     (trainingIndices, validationIndices) = holdOut(size(trainingInputs,1), modelHyperparameters["validationRatio"]*size(trainingInputs,1)/size(inputs,1));
                     ann = entrenarClassRNA(modelHyperparameters["topology"], (trainingInputs[trainingIndices,:], trainingTargets[trainingIndices,:]),
-                    	(testInputs, testTargets), (trainingInputs[validationIndices,:], trainingTargets[validationIndices,:]),
-                    	modelHyperparameters["maxEpochs"], modelHyperparameters["minLoss"], modelHyperparameters["learningRate"], modelHyperparameters["maxEpochsVal"])[1];
+                        (testInputs, testTargets), (trainingInputs[validationIndices,:], trainingTargets[validationIndices,:]),
+                        modelHyperparameters["maxEpochs"], modelHyperparameters["minLoss"], modelHyperparameters["learningRate"], modelHyperparameters["maxEpochsVal"])[1];
                 else
                     ann = entrenarClassRNA(modelHyperparameters["topology"], (trainingInputs, trainingTargets),
-                    	modelHyperparameters["maxEpochs"], modelHyperparameters["minLoss"], modelHyperparameters["learningRate"])[1];
+                        modelHyperparameters["maxEpochs"], modelHyperparameters["minLoss"], modelHyperparameters["learningRate"])[1];
                 end;
 
                 (testAccuraciesEachRepetition[numTraining], _, _, _, _, _,
-                		testF1EachRepetition[numTraining], _) = if !modelHyperparameters["normalized"]
-
-                		confusionMatrix(testTargets, ann(testInputs')');
-	                else
-	                	confusionMatrix(collect(Int, testTargets)[:,1], ann(testInputs')[1,:], modelHyperparameters["umbral"]);
-			    	end;
+                    testF1EachRepetition[numTraining], _) =
+                        if !modelHyperparameters["normalized"]
+                            confusionMatrix(testTargets, ann(testInputs')');
+                        else
+                            confusionMatrix(collect(Int, testTargets)[:,1], ann(testInputs')[1,:], modelHyperparameters["umbral"]);
+                        end;
                 
             end;
 

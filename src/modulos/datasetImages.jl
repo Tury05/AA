@@ -4,6 +4,8 @@ using Images;
 using Statistics;
 using Random;
 using Plots;
+using Flux;
+using Flux.Losses;
 
 # Functions that allow the conversion from images to Float64 arrays
 imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float64,2}, gray.(Gray.(image)));
@@ -41,6 +43,7 @@ function loadTrainingDataset(positiveFolderName::String, negativeFolderName::Str
     targets = [trues(length(positivesColor)); falses(length(negativesColor))];
     return ([positivesColor; negativesColor], [positivesGray; negativesGray], targets);
 end;
+
 loadTestDataset() = ((colorMatrix,_) = loadFolderImages("test"); return colorMatrix; );
 
 function loadImage(fileName::String)
@@ -95,7 +98,21 @@ function imageToData2(filename::String)
 	return data2;
 end;
 	
+function imageToData3(filename::String)
+	data = imageToData(filename)
 	
+	data3 = Array{Float64, 1}(undef, 5);
+	
+	conj = (data[1], data[2], data[3], data[7], data[8], data[9]);
+	
+	data3[1] = mean(conj);
+	data3[2] = std(conj);
+	data3[3] = data[4];
+	data3[4] = data[5];
+	data3[5] = data[6];
+	
+	return data3;
+end;
 
 function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 
@@ -130,9 +147,110 @@ function santaImagesToDatasets(santaFolder::String, notSantaFolder::String)
 end;
 
 
-function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 
-	
+function eyeImagesToDatasets(colorMatrix::AbstractArray{Float64,2})
+
+	fil = convert(Int,floor(size(colorMatrix,1)/3));
+	col = convert(Int,floor(size(colorMatrix,2)/7));
+	dataset = Array{Float64, 1}(undef, 3);
+
+	for j in 1:3
+		
+		dataset[j] = mean(colorMatrix[fil:(fil*2),(col*(j*2-1)):(col*(j*2))]);
+	end;
+
+	return dataset;
+end;
+
+function eyeImagesToDatasets(eyeFolder::String, notEyeFolder::String)
+
+	_, eyeImages = loadFolderImages(eyeFolder);
+	_, notEyeImages = loadFolderImages(notEyeFolder);
+	images = (eyeImages, notEyeImages);
+
+	eyeDataset = Array{Float64, 2}(undef, size(eyeImages,1), 3);
+	notEyeDataset = Array{Float64, 2}(undef, size(notEyeImages,1), 3);
+	datasets = (eyeDataset, notEyeDataset);
+
+	for s in 1:2
+		i = 1
+		for colorMatrix in images[s]
+			datasets[s][i,:] = eyeImagesToDatasets(colorMatrix);
+
+			i += 1;
+		end;
+	end;
+
+	return datasets;
+end;
+
+function testRNAfaceImage(faceImage::String, rna::Chain{Tuple{Dense{typeof(σ),Array{Float32,2},Array{Float32,1}},Dense{typeof(σ),Array{Float32,2},Array{Float32,1}},Dense{typeof(σ),Array{Float32,2},Array{Float32,1}}}},
+	uRNA::Real, uDist::Real, uErrors::Int)
+
+	_,image = loadImage(faceImage);
+
+	fil = convert(Int,round(size(image,1)/60));
+	col = convert(Int,round(size(image,2)/64));
+
+	ojoIXs = [];
+	ojoIYs = [];
+	maxDist = 19.42*uDist;
+	nErrors = 0;
+
+	for y in 20:36
+		for x in 16:27
+			patron = eyeImagesToDatasets(image[(y*fil):((y+3)*fil),(x*col):((x+4)*col)]);
+			if (rna(patron)[1] > uRNA) & (rna(reverse(patron, dims=1))[1] > uRNA)
+				if !isempty(ojoIYs)
+					if sqrt((mean(ojoIYs)-y)^2 + (mean(ojoIXs)-x)^2) < maxDist
+						push!(ojoIYs, y);
+						push!(ojoIXs, x);
+					else
+						if nErrors > uErrors
+							return false;
+						else
+							nErrors+=1;
+						end;
+					end;
+				else
+					push!(ojoIYs, y);
+					push!(ojoIXs, x);
+				end;
+			end;
+		end;
+	end;
+
+	ojoDXs = [];
+	ojoDYs = [];
+	nErrors = 0;
+
+	for y in 20:36
+		for x in 16:27
+			patron = eyeImagesToDatasets(image[(y*fil):((y+3)*fil),(x*col):((x+4)*col)]);
+			if (rna(patron)[1] > uRNA) & (rna(reverse(patron, dims=1))[1] > uRNA)
+				if !isempty(ojoDYs)
+					if sqrt((mean(ojoDYs)-y)^2 + (mean(ojoDXs)-x)^2) < maxDist
+						push!(ojoDYs, y);
+						push!(ojoDXs, x);
+					else
+						if nErrors > uErrors
+							return false;
+						else
+							nErrors+=1;
+						end;
+					end;
+				else
+					push!(ojoDYs, y);
+					push!(ojoDXs, x);
+				end;
+			end;
+		end;
+	end;
+
+	return !isempty(ojoIYs) & !isempty(ojoDYs);
+end;
+
+function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 
 	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
 	
@@ -158,13 +276,41 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 	
 	return datasets2;
 end;
-			
 
+function santaImagesToDatasets3(santaFolder::String, notSantaFolder::String)
+
+	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
+	
+	santaDataset3 = Array{Float64, 2}(undef, size(datasets[1], 1), 5);
+	notsantaDataset3 = Array{Float64, 2}(undef, size(datasets[2], 1), 5);
+	datasets3 = (santaDataset3, notsantaDataset3);
+	
+	for s in 1:2
+		
+		for i in 1:size(datasets[s],1)
+			conj = (datasets[s][i,1], datasets[s][i,2],  datasets[s][i,3], datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
+			
+			datasets3[s][i,1] = mean(conj);
+			datasets3[s][i,2] = std(conj);
+			datasets3[s][i, 3] = datasets[s][i,4];
+			datasets3[s][i, 4] = datasets[s][i,5];
+			datasets3[s][i, 5] = datasets[s][i,6];
+			
+			
+		end;
+	end;
+	
+	return datasets3;
+end;
 
 function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
-	inDSLength = size(a1,1)+size(a2,1);
+	
+	@assert(size(a1) == size(a2)); 
+	inDSLength = size(a1,1)*2;
 	perm = randperm(inDSLength);
-	inDS = Array{Float64, 2}(undef, inDSLength, 7);
+
+	inDS = Array{Float64, 2}(undef, inDSLength, size(a1,2));
+
 	outDS = Array{Bool}(undef, inDSLength);
 	k = 1;
 

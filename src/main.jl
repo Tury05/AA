@@ -243,7 +243,7 @@ function testRNAfaceImage(faceImage::String, rna::Chain{Tuple{Dense{typeof(σ),A
 
 	return !isempty(ojoIYs) & !isempty(ojoDYs);
 end;
-=======
+
 function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 
 	
@@ -272,8 +272,6 @@ function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 	
 	return datasets2;
 end;
-			
->>>>>>> 192a00a6d29cf9b06a15142f1936a485ffa1f87b
 
 
 function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
@@ -281,11 +279,9 @@ function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})
 	@assert(size(a1) == size(a2)); 
 	inDSLength = size(a1,1)*2;
 	perm = randperm(inDSLength);
-<<<<<<< HEAD
+
 	inDS = Array{Float64, 2}(undef, inDSLength, size(a1,2));
-=======
-	inDS = Array{Float64, 2}(undef, inDSLength, 7);
->>>>>>> 192a00a6d29cf9b06a15142f1936a485ffa1f87b
+
 	outDS = Array{Bool}(undef, inDSLength);
 	k = 1;
 
@@ -916,7 +912,7 @@ function modelCrossValidation(modelType::Symbol, modelHyperparameters::Dict, inp
     return (mean(testAccuracies), std(testAccuracies), mean(testF1), std(testF1));
 end;
 
-"""
+
 santaData, notSantaData = santaImagesToDatasets2("BBDD/papa_noel/santa", "BBDD/papa_noel/not-a-santa");
 inDS, outDS = randDataset(santaData, notSantaData);
 

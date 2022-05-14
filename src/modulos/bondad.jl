@@ -1,5 +1,4 @@
-include("datasetDL.jl")
-include("datasets.jl");
+using Statistics;
 
 function accuracy(target::AbstractArray{Bool,1},
     outputs::AbstractArray{Bool,1})
