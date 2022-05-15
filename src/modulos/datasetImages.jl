@@ -3,9 +3,6 @@ using JLD2;
 using Images;
 using Statistics;
 using Random;
-using Plots;
-using Flux;
-using Flux.Losses;
 
 # Functions that allow the conversion from images to Float64 arrays
 imageToGrayArray(image:: Array{RGB{Normed{UInt8,8}},2}) = convert(Array{Float64,2}, gray.(Gray.(image)));
@@ -27,6 +24,21 @@ function loadFolderImages(folderName::String)
     for fileName in readdir(folderName)
         if isImageExtension(fileName)
             image = load(string(folderName, "/", fileName));
+            # Check that they are color images
+            @assert(isa(image, Array{RGBA{Normed{UInt8,8}},2}) || isa(image, Array{RGB{Normed{UInt8,8}},2}))
+            # Add the image to the vector of images
+            push!(images, image);
+        end;
+    end;
+    # Convert the images to arrays by broadcasting the conversion functions, and return the resulting vectors
+    return (imageToColorArray.(images), imageToGrayArray.(images));
+end;
+
+function loadFolderImages(folderName::String, h::Int, w::Int)
+    images = [];
+    for fileName in readdir(folderName)
+        if isImageExtension(fileName)
+            image = imresize(load(string(folderName, "/", fileName)), (h, w));
             # Check that they are color images
             @assert(isa(image, Array{RGBA{Normed{UInt8,8}},2}) || isa(image, Array{RGB{Normed{UInt8,8}},2}))
             # Add the image to the vector of images

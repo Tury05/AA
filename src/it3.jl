@@ -5,6 +5,7 @@ include("modulos/models_cross_validation.jl");
 include("modulos/rna.jl");
 
 using BSON: @load
+using Plots;
 
 # Codificación BD
 eyeData, notEyeData =

@@ -5,6 +5,7 @@ include("modulos/models_cross_validation.jl");
 include("modulos/rna.jl");
 
 using BSON: @save
+using Plots;
 
 # Codificación BD
 santaData, notSantaData =
