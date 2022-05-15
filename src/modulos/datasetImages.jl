@@ -19,9 +19,10 @@ function imageToColorArray(image::Array{RGB{Normed{UInt8,8}},2})
 end;
 imageToColorArray(image::Array{RGBA{Normed{UInt8,8}},2}) = imageToColorArray(RGB.(image));
 
+isImageExtension(fileName::String) = any(uppercase(fileName[end-3:end]) .== [".JPG", ".PNG"]);
+
 # Function to read all of the images in a folder and return them as 2 Float64 arrays: one with color components (3D array) and the other with grayscale components (2D array)
 function loadFolderImages(folderName::String)
-    isImageExtension(fileName::String) = any(uppercase(fileName[end-3:end]) .== [".JPG", ".PNG"]);
     images = [];
     for fileName in readdir(folderName)
         if isImageExtension(fileName)
@@ -182,8 +183,7 @@ function eyeImagesToDatasets(eyeFolder::String, notEyeFolder::String)
 	return datasets;
 end;
 
-function testRNAfaceImage(faceImage::String, rna::Chain{Tuple{Dense{typeof(σ),Array{Float32,2},Array{Float32,1}},Dense{typeof(σ),Array{Float32,2},Array{Float32,1}},Dense{typeof(σ),Array{Float32,2},Array{Float32,1}}}},
-	uRNA::Real, uDist::Real, uErrors::Int)
+function testRNAfaceImage(faceImage::String, rna::Function, uRNA::Real, uDist::Real, uErrors::Int)
 
 	_,image = loadImage(faceImage);
 
@@ -250,55 +250,48 @@ end;
 
 function santaImagesToDatasets2(santaFolder::String, notSantaFolder::String)
 
-	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
+	datas = santaImagesToDatasets(santaFolder, notSantaFolder);
 	
-	santaDataset2 = Array{Float64, 2}(undef, size(datasets[1],1), 7);
-	notsantaDataset2 = Array{Float64, 2}(undef, size(datasets[2],1), 7);
-	datasets2 = (santaDataset2, notsantaDataset2);
-	for s in 1:2
-		i = 1
-		for img in datasets[s]
-			conj1 = (datasets[s][i,1], datasets[s][i,2], datasets[s][i,3]);
-			conj2 = (datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
-			datasets2[s][i, 1] = mean(conj1);
-			datasets2[s][i, 2] = std(conj2);
-			datasets2[s][i, 3] = datasets[s][i,4];
-			datasets2[s][i, 4] = datasets[s][i,5];
-			datasets2[s][i, 5] = datasets[s][i,6];
-			datasets2[s][i, 6] = mean(conj2);
-			datasets2[s][i, 7] = std(conj2);
-			
-			i=+ 1;
-		end;
+	datas2 = Array{Float64, 2}(undef, size(datas[1], 1), 7),
+		Array{Float64, 2}(undef, size(datas[2], 1), 7);
+	
+	for i in 1:2
+
+		conj = [datas[i][:,1], datas[i][:,2], datas[i][:,3]];
+		conj2 = [datas[i][:,7], datas[i][:,8], datas[i][:,9]];
+
+		datas2[i][:,1] = mean(conj);
+		datas2[i][:,2] = std(conj);
+		datas2[i][:,3] = datas[i][:,4];
+		datas2[i][:,4] = datas[i][:,5];
+		datas2[i][:,5] = datas[i][:,6];
+		datas2[i][:,6] = mean(conj2);
+		datas2[i][:,7] = std(conj2);
 	end;
 	
-	return datasets2;
+	return datas2;
 end;
 
 function santaImagesToDatasets3(santaFolder::String, notSantaFolder::String)
 
-	datasets = santaImagesToDatasets(santaFolder, notSantaFolder);
+	datas = santaImagesToDatasets(santaFolder, notSantaFolder);
 	
-	santaDataset3 = Array{Float64, 2}(undef, size(datasets[1], 1), 5);
-	notsantaDataset3 = Array{Float64, 2}(undef, size(datasets[2], 1), 5);
-	datasets3 = (santaDataset3, notsantaDataset3);
+	datas3 = Array{Float64, 2}(undef, size(datas[1], 1), 5),
+		Array{Float64, 2}(undef, size(datas[2], 1), 5);
 	
-	for s in 1:2
-		
-		for i in 1:size(datasets[s],1)
-			conj = (datasets[s][i,1], datasets[s][i,2],  datasets[s][i,3], datasets[s][i,7], datasets[s][i,8], datasets[s][i,9]);
-			
-			datasets3[s][i,1] = mean(conj);
-			datasets3[s][i,2] = std(conj);
-			datasets3[s][i, 3] = datasets[s][i,4];
-			datasets3[s][i, 4] = datasets[s][i,5];
-			datasets3[s][i, 5] = datasets[s][i,6];
-			
-			
-		end;
+	for i in 1:2
+
+		conj = [datas[i][:,1], datas[i][:,2], datas[i][:,3],
+				datas[i][:,7], datas[i][:,8], datas[i][:,9]];
+
+		datas3[i][:,1] = mean(conj);
+		datas3[i][:,2] = std(conj);
+		datas3[i][:,3] = datas[i][:,4];
+		datas3[i][:,4] = datas[i][:,5];
+		datas3[i][:,5] = datas[i][:,6];
 	end;
-	
-	return datasets3;
+
+	return datas3;
 end;
 
 function randDataset(a1::AbstractArray{Float64,2}, a2::AbstractArray{Float64,2})

@@ -18,7 +18,7 @@ testset = inDS[(nInstXset+1):(nInstXset*2),:], outDS[(nInstXset+1):(nInstXset*2)
 validset = inDS[(nInstXset*2+1):end,:], outDS[(nInstXset*2+1):end];
 
 # Entrenamiento
-trained_chain, lossestrain, lossestest, lossesvalid =
+eye_trained_chain, lossestrain, lossestest, lossesvalid =
 	entrenarClassRNA([16,8], trainset, testset, validset, 100, 0, 0.01);
 
 # Errores
@@ -28,18 +28,18 @@ plot!(plosses,lossesvalid, label="Validación")
 
 # Probar un caso
 test = eyeImagesToDatasets(loadImage("BBDD/papa_noel/eye/10.Santa.jpg")[2])
-prueba = trained_chain(eyeImagesToDatasets(loadImage("BBDD/papa_noel/eye/10.Santa.jpg")[2]))
+prueba = eye_trained_chain(eyeImagesToDatasets(loadImage("BBDD/papa_noel/eye/10.Santa.jpg")[2]))
 
 # Curva ROC para la R.N.A. de detección de ojos
 curvaROC = map(umbral ->(
-		m = confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], umbral)[8];
+		m = confusionMatrix(convert(Array{Int}, outDS), eye_trained_chain(inDS')[1,:], umbral)[8];
 		(m[1,2]/sum(m[1,1:2]),m[2,2]/sum(m[2,1:2]))
 	), 0:0.01:1);
 pROC = plot(curvaROC)
 
 # Matriz de confusión para la R.N.A. de detección de ojos
 acc, e_rate, sens, spec, ppv, npv, F1, confM =
-	confusionMatrix(convert(Array{Int}, outDS), trained_chain(inDS')[1,:], 0.5);
+	confusionMatrix(convert(Array{Int}, outDS), eye_trained_chain(inDS')[1,:], 0.5);
 
 
 # Models cross validation
@@ -162,7 +162,15 @@ modelCrossValidation(:SVM, parameters, inDS, outDS, 10)
 
 
 # Se carga la R.N.A. (Se requiere haber ejecutado it2.jl previamente)
-@load "mymodel.bson" santa_trained_chain
+@load "mymodel.bson" trained_chain
+
+imageToDataX = if size(params(trained_chain)[1],2) == 5
+		imageToData3
+	elseif size(params(trained_chain)[1],2) == 7
+		imageToData2
+	else
+		imageToData
+	end;
 
 # Curva ROC para la combinación del sistema de detección de ojos y Santa
 folders = "BBDD/papa_noel/human", "BBDD/papa_noel/not-a-human";
@@ -182,8 +190,8 @@ for uErrors in 5:5
 			for i in 1:2
 				for fileName in readdir(folders[i])
 					if isImageExtension(fileName)
-						push!(outputs, testRNAfaceImage(string(folders[i], "/", fileName),
-							trained_chain, uRNA, uDist, 5) & (santa_trained_chain(imageToData(string(folders[i], "/", fileName)))[1] > 0.5));
+						push!(outputs, testRNAfaceImage(string(folders[i], "/", fileName), x -> eye_trained_chain(x), uRNA, uDist, 5) &
+							(trained_chain(imageToDataX(string(folders[i], "/", fileName)))[1] > 0.5));
 						push!(targets, i==1);
 					end;
 				end;
@@ -210,9 +218,8 @@ targets = [];
 for i in 1:2
    for fileName in readdir(folders[i])
        if isImageExtension(fileName)
-               push!(outputs, testRNAfaceImage(string(folders[i], "/", fileName),
-               	trained_chain, 0.8, 0.3, 5) &
-               (santa_trained_chain(imageToData(string(folders[i], "/", fileName)))[1] > 0.5));
+               push!(outputs, testRNAfaceImage(string(folders[i], "/", fileName), x -> eye_trained_chain(x), 0.8, 0.3, 5) &
+               (trained_chain(imageToDataX(string(folders[i], "/", fileName)))[1] > 0.5));
                push!(targets, i==1);
        end;
    end;
@@ -229,8 +236,7 @@ targets = [];
 for i in 1:2
 	for fileName in readdir(folders[i])
 		if isImageExtension(fileName)
-			push!(outputs, santa_trained_chain(
-				imageToData(string(folders[i], "/", fileName)))[1] > 0.5);
+			push!(outputs, trained_chain(imageToDataX(string(folders[i], "/", fileName)))[1] > 0.5);
 			push!(targets, i==1);
 		end;
 	end;
